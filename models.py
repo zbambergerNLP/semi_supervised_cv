@@ -1,3 +1,4 @@
+import torch
 import torchvision.models as models
 from torchsummary import summary
 import torch.nn as nn
@@ -12,18 +13,25 @@ class Encoder(nn.Module):
     '''
     def __init__(self):
         super(Encoder, self).__init__()
-        self.resnet50 = resnet50
-        self.fc1 = nn.Linear(self.resnet50.fc.in_features, 128)
-        #TODO add a L2 normalization like suggested in paper
-        #TODO check how to remove the last fc layer in resnet
-        #TODO chekc if self.resnet50.fc.in_features is what needed
+        # self.resnet50 = resnet50
+        self.resnet50 = nn.Sequential(*(list(resnet50.children())[:-1]))
+        self.fc1 = nn.Linear(1, 128)
+        #TODO chekc if 1 is the size needed in fc1 layer
     def forward(self, x):
         x = self.resnet50(x)
+        print(x.shape)
         x = self.fc1(x)
+        print(x.shape)
+        #normlaize by the L2 norm
+        l2_norm = torch.linalg.norm(x,dim=(1,2,3))
+        x = (x.T / l2_norm).T
+        print(x.shape)
         return x
 
 
 if __name__ == '__main__':
     encoder_model = Encoder()
     print(encoder_model)
+    x_demo = torch.rand((4,3,32,32))
+    y = encoder_model(x_demo)
     print("Done")
