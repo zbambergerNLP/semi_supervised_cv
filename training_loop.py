@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+from augment import load_imagenette
+
+
 
 # train function
 def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9):
@@ -24,3 +27,6 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9):
 # save model
 
 # load model
+
+if __name__ == '__main__':
+    train_loader = load_imagenette()
