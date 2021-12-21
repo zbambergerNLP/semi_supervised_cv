@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-
+import random
+import numpy as np
 import models
 from augment import load_imagenette
 
@@ -9,7 +10,7 @@ from augment import load_imagenette
 # train function
 def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t = 0.07, m = 0.999):
 
-    dict = {}
+    dict = {} #keys are the ouptut
     queue_dict = [] #will add in FIFO order keys of mini batches
     loss_fn = nn.CrossEntropyLoss
 
@@ -20,7 +21,7 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
     for epoch in range(epochs):
         print(f'start epoch {epoch}')
 
-        for x, y  in train_loader:
+        for x in train_loader:
             optimizer.zero_grad()
             #TODO call augmentaion function
 
@@ -60,14 +61,8 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
             #enqueue queue and queue dict
             queue_dict.append(k)
 
-            minibatch_dict = {}
-
-
-
-
-
-
-
+            #dequeue the oldest minibatch
+            queue_dict.pop(0)
 
 
 
@@ -80,6 +75,15 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
 # save model
 
 # load model
+
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 
 if __name__ == '__main__':
     seed = 1
@@ -98,5 +102,5 @@ if __name__ == '__main__':
     encoder.to(device)
     m_endcoder.to(device)
 
-    train(encoder, m_encoder, train_loader, epochs=epochs,lr = learning_rate,  momentum= momentum)
+    train(encoder, m_endcoder, train_loader, epochs=epochs,lr = learning_rate,  momentum= momentum)
 
