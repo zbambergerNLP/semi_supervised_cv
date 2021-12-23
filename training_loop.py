@@ -12,11 +12,13 @@ from torch.utils.data import DataLoader
 from torchvision import transforms, utils
 
 # train function
-def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t = 0.07, m = 0.999):
+def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t = 0.07, m = 0.999, number_of_keys=3):
 
     dict = {} #keys are the ouptut
-    queue_dict = [] #will add in FIFO order keys of mini batches
-    loss_fn = nn.CrossEntropyLoss
+    queue_dict = [ ] # will add in FIFO order keys of mini batches
+    for i in range(number_of_keys):
+        queue_dict.append(torch.rand(262144)) #TODO think of a better way than hard coded
+    loss_fn = nn.BCEWithLogitsLoss()
 
     #the optimization is done only to the encoder weights and not to the momentum encoder
     optimizer = torch.optim.SGD(encoder.parameters(), lr=lr, momentum=momentum)
@@ -41,19 +43,18 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
             k = torch.unsqueeze(k, dim=2)
             l_pos = (q @ k).squeeze(dim = 2)
 
-            if len(queue_dict) >0 :
-                queue_view = torch.concat([queue_dict[x] for x in queue_dict], 1)
 
-                #negative logits NxK
-                l_neg = q @ queue_view
-                logits = torch.concat((l_pos, l_neg), dim=0)  # Nx(k+1)
-            else:
-                logits = l_pos
+            queue_view = torch.concat([queue_dict[i].unsqueeze(dim =1) for i in range(len(queue_dict))], 1)
+            q = torch.squeeze(q, dim=1)
+            #negative logits NxK
+            l_neg = q @ queue_view.double()
+            logits = torch.concat((l_pos, l_neg), dim=1)  # Nx(k+1)
+
 
             labels = torch.zeros(l_pos.shape[0])
-            labels[0] = 1 #first logit is  from the same image so the label is 1
+            one_hot_labels = torch.nn.functional.one_hot(labels.to(torch.int64), num_classes= logits.shape[1])
 
-            loss = loss_fn(logits / t , labels)
+            loss = loss_fn(logits / t, one_hot_labels.double())
             #SGD update query network
             loss.backward()
             optimizer.step() #update only encoder parmas and not m_encoder params #TODO make sure that this is what happens
@@ -81,8 +82,6 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
 
 # evalutate function top-1 accuracy with linear evaluation
 
-# data loaders function
-
 # save model
 
 # load model
@@ -102,10 +101,10 @@ if __name__ == '__main__':
     lr = 0.1
     momentum = 0.9
     bs = 8
+    number_of_keys = 3
 
     set_seed(seed)
 
-    #train_loader = load_imagenette() #TODO add batch size
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                         root_dir=consts.image_dir,
                                            transform=transforms.Compose([
@@ -113,6 +112,7 @@ if __name__ == '__main__':
                                                RandomCrop(224),
                                                ToTensor()
                                            ]))
+
     train_loader = DataLoader(imagenette_dataset, batch_size=bs)
 
     # fig = plt.figure()
@@ -140,5 +140,5 @@ if __name__ == '__main__':
     encoder.to(device)
     m_endcoder.to(device)
 
-    train(encoder, m_endcoder, train_loader, epochs=epochs,lr = lr,  momentum= momentum)
+    train(encoder, m_endcoder, train_loader, epochs=epochs,lr = lr,  momentum= momentum, number_of_keys = number_of_keys)
 
