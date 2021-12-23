@@ -2,10 +2,14 @@ import torch
 import torch.nn as nn
 import random
 import numpy as np
+
+import consts
 import models
+import matplotlib.pyplot as plt
 from augment import load_imagenette
-
-
+from data_loader import ImagenetteDataset, Rescale, RandomCrop,ToTensor
+from torch.utils.data import DataLoader
+from torchvision import transforms, utils
 
 # train function
 def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t = 0.07, m = 0.999):
@@ -22,6 +26,7 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
         print(f'start epoch {epoch}')
 
         for x in train_loader:
+            x = x.double()
             optimizer.zero_grad()
             #TODO call augmentaion function
 
@@ -30,14 +35,20 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
             k = k.detach() # no gradients to keys
 
             #positive logits Nx1
-            l_pos = q @ k
+            q = torch.flatten(q, start_dim=1)
+            q = torch.unsqueeze(q, dim=1)
+            k = torch.flatten(k, start_dim=1)
+            k = torch.unsqueeze(k, dim=2)
+            l_pos = (q @ k).squeeze(dim = 2)
 
-            queue_view = torch.concat([queue_dict[x] for x in queue_dict], 1)
+            if len(queue_dict) >0 :
+                queue_view = torch.concat([queue_dict[x] for x in queue_dict], 1)
 
-            #negative logits NxK
-            l_neg = q @ queue_view
-
-            logits = torch.concat((l_pos,l_neg), dim= 0) #Nx(k+1)
+                #negative logits NxK
+                l_neg = q @ queue_view
+                logits = torch.concat((l_pos, l_neg), dim=0)  # Nx(k+1)
+            else:
+                logits = l_pos
 
             labels = torch.zeros(l_pos.shape[0])
             labels[0] = 1 #first logit is  from the same image so the label is 1
@@ -88,19 +99,46 @@ def set_seed(seed=42):
 if __name__ == '__main__':
     seed = 1
     epochs = 2
-    learning_rate = 0.1
+    lr = 0.1
     momentum = 0.9
+    bs = 8
+
     set_seed(seed)
 
-    train_loader = load_imagenette() #TODO add batch size
+    #train_loader = load_imagenette() #TODO add batch size
+    imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
+                                        root_dir=consts.image_dir,
+                                           transform=transforms.Compose([
+                                               Rescale(256),
+                                               RandomCrop(224),
+                                               ToTensor()
+                                           ]))
+    train_loader = DataLoader(imagenette_dataset, batch_size=bs)
 
-    encoder = models.Encoder()
-    m_endcoder  = models.Encoder()
+    # fig = plt.figure()
+    #
+    # for i in range(len(imagenette_dataset)):
+    #     sample = imagenette_dataset[i]
+    #
+    #     print(i, sample.shape)
+    #
+    #     ax = plt.subplot(1, 4, i + 1)
+    #     plt.tight_layout()
+    #     ax.set_title('Sample #{}'.format(i))
+    #     ax.axis('off')
+    #
+    #
+    #     if i == 3:
+    #         plt.show()
+    #         break
+
+    encoder = models.Encoder().double()
+    m_endcoder  = models.Encoder().double()
 
     # train model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     encoder.to(device)
     m_endcoder.to(device)
 
-    train(encoder, m_endcoder, train_loader, epochs=epochs,lr = learning_rate,  momentum= momentum)
+    train(encoder, m_endcoder, train_loader, epochs=epochs,lr = lr,  momentum= momentum)
 
