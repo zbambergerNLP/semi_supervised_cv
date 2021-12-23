@@ -101,6 +101,10 @@ class ToTensor(object):
         # swap color axis because
         # numpy image: H x W x C
         # torch image: C x H x W
+        if len(image.shape) == 2:
+            image = np.expand_dims(image, axis=2)
+            image = np.repeat(image,3,axis=2)
+
         image = image.transpose((2, 0, 1))
         return  torch.from_numpy(image)
 

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms, utils
 
 # train function
-def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t = 0.07, m = 0.999, number_of_keys=3):
+def train(encoder,m_encoder, train_loader, epochs=20, bs = 8, lr=0.001, momentum=0.9, t = 0.07, m = 0.999, number_of_keys=3):
 
     dict = {} #keys are the ouptut
     queue_dict = [ ] # will add in FIFO order keys of mini batches
@@ -63,21 +63,18 @@ def train(encoder,m_encoder, train_loader, epochs=20, lr=0.001, momentum=0.9, t 
             m_encoder_state_dict = m_encoder.state_dict()
             encoder_state_dict = encoder.state_dict()
 
-            for m_name, m_param, name, param in zip(m_encoder_state_dict.items(), encoder_state_dict.item()):
-                # Transform the parameter as required.
-                transformed_param = m * m_param  + (1-m) * param
 
+            for m_name, m_param in m_encoder_state_dict.items():
+                # Transform the parameter as required.
+                transformed_param = m * m_param + (1 - m) * encoder_state_dict[m_name]
                 # Update the parameter.
                 m_encoder_state_dict[m_name].copy_(transformed_param)
 
-            #enqueue queue and queue dict
-            queue_dict.append(k)
-
-            #dequeue the oldest minibatch
-            queue_dict.pop(0)
-
-
-
+            for i in range(k.shape[0]):
+                # enqueue queue and queue dict
+                queue_dict.append(k[i].squeeze(dim=1))
+                # dequeue the oldest mini batch
+                queue_dict.pop(0)
 
 
 # evalutate function top-1 accuracy with linear evaluation
@@ -101,7 +98,8 @@ if __name__ == '__main__':
     lr = 0.1
     momentum = 0.9
     bs = 8
-    number_of_keys = 3
+    number_of_keys = 8
+    assert number_of_keys % bs ==0 ,f'Choose a different number of keys so it will be a multiple of the batch size'
 
     set_seed(seed)
 
@@ -140,5 +138,5 @@ if __name__ == '__main__':
     encoder.to(device)
     m_endcoder.to(device)
 
-    train(encoder, m_endcoder, train_loader, epochs=epochs,lr = lr,  momentum= momentum, number_of_keys = number_of_keys)
+    train(encoder, m_endcoder, train_loader, epochs=epochs,bs = bs,lr = lr,  momentum= momentum, number_of_keys = number_of_keys)
 
