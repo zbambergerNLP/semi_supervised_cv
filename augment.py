@@ -52,9 +52,9 @@ def augment(images,
             jitter_prob,
             horizontal_flip_prob,
             grayscale_conversion_prob,
-            jitter_brightness=0,
-            jitter_contrast=0,
-            jitter_saturation=0,
+            jitter_brightness=1,
+            jitter_contrast=1,
+            jitter_saturation=1,
             jitter_hue=0):
     """
     A cropped image undergoes augmentation through color jittering, random horizontal flip, and

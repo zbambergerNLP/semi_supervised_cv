@@ -3,13 +3,12 @@ import torch.nn as nn
 import random
 import numpy as np
 
-import consts_zach as consts
+import consts_noam as consts
 import models
-import matplotlib.pyplot as plt
-from augment import load_imagenette
 from data_loader import ImagenetteDataset, Rescale, RandomCrop,ToTensor
 from torch.utils.data import DataLoader
-from torchvision import transforms, utils
+from torchvision import transforms
+from augment import augment
 
 # train function
 def train(encoder,m_encoder, train_loader, epochs=20, bs = 8, lr=0.001, momentum=0.9, t = 0.07, m = 0.999, number_of_keys=3):
@@ -27,13 +26,24 @@ def train(encoder,m_encoder, train_loader, epochs=20, bs = 8, lr=0.001, momentum
     for epoch in range(epochs):
         print(f'start epoch {epoch}')
 
+        debug = 0
         for x in train_loader:
+
             x = x.double()
             optimizer.zero_grad()
             #TODO call augmentaion function
-
-            q = encoder.forward(x) #queries NxC
-            k = m_encoder.forward(x) #keys NxC
+            probs_q = torch.rand(3)
+            probs_k = torch.rand(3)
+            x_q= augment(images=x,
+                          jitter_prob= probs_q[0],
+            horizontal_flip_prob =probs_q[1],
+            grayscale_conversion_prob = probs_q[2])
+            x_k = augment(images=x,
+                          jitter_prob=probs_k[0],
+                          horizontal_flip_prob=probs_k[1],
+                          grayscale_conversion_prob=probs_k[2])
+            q = encoder.forward(x_q) #queries NxC
+            k = m_encoder.forward(x_k) #keys NxC
             k = k.detach() # no gradients to keys
 
             #positive logits Nx1
@@ -55,6 +65,9 @@ def train(encoder,m_encoder, train_loader, epochs=20, bs = 8, lr=0.001, momentum
             one_hot_labels = torch.nn.functional.one_hot(labels.to(torch.int64), num_classes= logits.shape[1])
 
             loss = loss_fn(logits / t, one_hot_labels.double())
+            if debug % 5== 0:
+                print(f' {debug}  loss ={loss}')
+
             #SGD update query network
             loss.backward()
             optimizer.step() #update only encoder parmas and not m_encoder params #TODO make sure that this is what happens
@@ -75,6 +88,8 @@ def train(encoder,m_encoder, train_loader, epochs=20, bs = 8, lr=0.001, momentum
                 queue_dict.append(k[i].squeeze(dim=1))
                 # dequeue the oldest mini batch
                 queue_dict.pop(0)
+
+            debug +=1
 
 
 # evalutate function top-1 accuracy with linear evaluation

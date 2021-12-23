@@ -6,7 +6,7 @@ from skimage import io, transform
 from torchvision import transforms, utils
 
 # import consts_noam as consts
-import consts_zach as consts
+import consts_noam as consts
 
 
 def create_csv_file(dir, filename):
