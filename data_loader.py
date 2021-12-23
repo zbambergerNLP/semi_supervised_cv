@@ -5,30 +5,23 @@ import numpy as np
 from skimage import io, transform
 from torchvision import transforms, utils
 
-import consts
+# import consts_noam as consts
+import consts_zach as consts
 
 
+def create_csv_file(dir, filename):
+    # Open the file in the write mode
+    with open(filename, 'w') as fileHandle:
+        for d in os.listdir(dir):
+            d_full_path = os.path.join(dir, d)
+            if os.path.isdir(d_full_path):
+                for path in os.listdir(d_full_path):
+                    full_path = os.path.join(d_full_path, path)
+                    if os.path.isfile(full_path):
 
+                        fileHandle.write(f'{full_path}\n')
+                        print(f'{full_path}\n')
 
-
-
-
-def create_csv_file(dir,filename):
-    # open the file in the write mode
-    f = open(filename, 'w')
-
-
-    for d in os.listdir(dir):
-        d_full_path = os.path.join(dir, d)
-        if os.path.isdir(d_full_path):
-            for path in os.listdir(d_full_path):
-                full_path = os.path.join(d_full_path, path)
-                if os.path.isfile(full_path):
-
-                    f.write(f'{full_path}\n')
-                    print(f'{full_path}\n')
-    # close the file
-    f.close()
 
 class Rescale(object):
     """Rescale the image in a sample to a given size.
@@ -60,6 +53,7 @@ class Rescale(object):
         img = transform.resize(image, (new_h, new_w))
 
         return img
+
 
 class RandomCrop(object):
     """Crop randomly the image in a sample.
@@ -108,10 +102,11 @@ class ToTensor(object):
         image = image.transpose((2, 0, 1))
         return  torch.from_numpy(image)
 
+
 class ImagenetteDataset(Dataset):
     """Imagenette dataset."""
 
-    def __init__(self,  root_dir, csv_file, transform = None):
+    def __init__(self,  root_dir, csv_file, transform=None):
         """
         Args:
             root_dir (string): Directory with all the images.
@@ -124,10 +119,8 @@ class ImagenetteDataset(Dataset):
         self.csv_file = csv_file
         self.transform = transform
 
-
         with open(csv_file, newline='') as f:
             self.paths_to_images = f.read().splitlines()
-
 
     def __len__(self):
         return len(self.paths_to_images)
@@ -145,5 +138,6 @@ class ImagenetteDataset(Dataset):
 
 
 if __name__ == '__main__':
-
-    create_csv_file(dir = consts.image_dir, filename=consts.csv_filename)
+    print(consts.image_dir)
+    print(consts.csv_filename)
+    create_csv_file(dir=consts.image_dir, filename=consts.csv_filename)

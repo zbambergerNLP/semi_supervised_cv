@@ -3,7 +3,7 @@ import torch.nn as nn
 import random
 import numpy as np
 
-import consts
+import consts_zach as consts
 import models
 import matplotlib.pyplot as plt
 from augment import load_imagenette
