@@ -5,31 +5,64 @@ import torch.nn as nn
 import random
 import numpy as np
 
-if os.getlogin() == 'zachary':
-    import consts_zach as consts
-else:
-    import consts_noam as consts
+import consts_zach as consts
+# import consts_noam as consts
+
 import models
 from data_loader import ImagenetteDataset, Rescale, RandomCrop,ToTensor
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from augment import augment
-
+import argparse
 import wandb
 
+SAVED_ENCODERS_DIR = './saved_encoders'
+
 wandb.init(project="semi_supervised_cv", entity="zbamberger")
+
+parser = argparse.ArgumentParser(
+    description='Process flags for fine-tuning transformers on an argumentation downstream task.')
+parser.add_argument('--seed',
+                    type=int,
+                    default=1,
+                    required=False,
+                    help='The seed used for random sampling.')
+parser.add_argument('--pretraining_epochs',
+                    type=int,
+                    default=3,
+                    required=False,
+                    help='The number of epochs used during pre-training.')
+parser.add_argument('--pretraining_learning_rate',
+                    type=float,
+                    default=1e-2,
+                    help='The initial learning rate used during pre-training.')
+parser.add_argument('--momentum',
+                    type=float,
+                    default=0.9,
+                    help='The momentum value used to transfer weights between encoders during pre-training.')
+parser.add_argument('--pretraining_batch_size',
+                    type=int,
+                    default=64,
+                    help='The mini-batch size used during pre-training with MoCo. Keys and queries are generated '
+                         'from the entries of a mini-batch.')
+parser.add_argument('--number_of_keys',
+                    type=int,
+                    default=8,
+                    help='The number of keys used during MoCo\'s pre-training. As the number of keys increases, '
+                         'the number of adversarial candidates during pre-training increases. Thus, as the number of'
+                         'keys increases, so does the model\'s output space and problem difficulty.')
 
 
 # Train function
 def pre_train(encoder,
-          m_encoder,
-          train_loader,
-          epochs=20,
-          lr=0.001,
-          momentum=0.9,
-          t=0.07,
-          m=0.999,
-          number_of_keys=3):
+              m_encoder,
+              train_loader,
+              epochs=20,
+              lr=0.001,
+              momentum=0.9,
+              t=0.07,
+              m=0.999,
+              number_of_keys=3):
     wandb.watch(encoder)
     batch_size = train_loader.batch_size
     queue_dict = []  # Will add in FIFO order keys of mini batches
@@ -40,6 +73,7 @@ def pre_train(encoder,
                              grayscale_conversion_prob=probs_initial[2])
     for i in range(number_of_keys):
         # TODO: Insert the first batch from the initial images above rather than hard-coding the below value.
+        #  262144
         queue_dict.append(torch.rand(262144))
     loss_fn = nn.BCEWithLogitsLoss()
 
@@ -66,7 +100,7 @@ def pre_train(encoder,
                           jitter_prob=probs_k[0],
                           horizontal_flip_prob=probs_k[1],
                           grayscale_conversion_prob=probs_k[2])
-            q = encoder.forward(x_q)  # Queries have shape [N, C]
+            q = encoder.forward(x_q)  # Queries have shape [N, C] where C = 2048 * 1 * 128
             k = m_encoder.forward(x_k)  # Keys have shape [N, C]
             k = k.detach()  # No gradients to keys
 
@@ -135,12 +169,13 @@ def set_seed(seed=42):
 
 
 if __name__ == '__main__':
-    seed = 1
-    epochs = 2
-    lr = 0.01
-    momentum = 0.9
-    bs = 64
-    number_of_keys = 8
+    args = parser.parse_args()
+    seed = args.seed
+    epochs = args.pretraining_epochs
+    lr = args.pretraining_learning_rate
+    momentum = args.momentum
+    bs = args.pretraining_batch_size
+    number_of_keys = args.number_of_keys
     assert bs % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
                                      f'Choose a different batch size so it will be a multiple of the number of keys.'
 
@@ -172,6 +207,12 @@ if __name__ == '__main__':
                         number_of_keys=number_of_keys)
     # Freeze the encoder
     encoder.requires_grad_(False)
+
+    # Save model state
+    if not os.path.exists(SAVED_ENCODERS_DIR):
+        os.mkdir(SAVED_ENCODERS_DIR)
+    file_name = "_".join(['resent50', str(epochs), 'epochs', str(lr).replace(".", "_"), 'lr']) + ".pt"
+    torch.save(encoder.state_dict(), os.path.join(SAVED_ENCODERS_DIR, file_name))
 
     # TODO: fine-tune a linear classifier + softmax layer on top of frozen encoder embeddings on Imagenette
     #  classification.
