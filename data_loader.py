@@ -3,10 +3,11 @@ import os
 import torch
 import numpy as np
 from skimage import io, transform
-from torchvision import transforms, utils
 
-# import consts_noam as consts
-import consts_noam as consts
+if os.getlogin() == 'zachary':
+    import consts_zach as consts
+else:
+    import consts_noam as consts
 
 
 def create_csv_file(dir, filename):
