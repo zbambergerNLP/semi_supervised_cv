@@ -5,7 +5,7 @@ import torch.nn as nn
 import random
 import numpy as np
 
-import consts_zach as consts
+import consts_noam as consts
 # import consts_noam as consts
 
 import models
@@ -18,7 +18,7 @@ import wandb
 
 SAVED_ENCODERS_DIR = './saved_encoders'
 
-wandb.init(project="semi_supervised_cv", entity="zbamberger")
+wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for fine-tuning transformers on an argumentation downstream task.')
@@ -51,7 +51,18 @@ parser.add_argument('--number_of_keys',
                     help='The number of keys used during MoCo\'s pre-training. As the number of keys increases, '
                          'the number of adversarial candidates during pre-training increases. Thus, as the number of'
                          'keys increases, so does the model\'s output space and problem difficulty.')
-
+parser.add_argument('--encoder_output_dim',
+                    type=int,
+                    default=128,
+                    help='The encoder\'s output dim')
+parser.add_argument('--temperature',
+                    type=int,
+                    default=0.07,
+                    help='The temperature used in the Contrastive loss')
+parser.add_argument('--m',
+                    type=int,
+                    default=0.999,
+                    help='The momentume used to update the key\'s encoder parameters')
 
 # Train function
 def pre_train(encoder,
@@ -72,9 +83,8 @@ def pre_train(encoder,
                              horizontal_flip_prob=probs_initial[1],
                              grayscale_conversion_prob=probs_initial[2])
     for i in range(number_of_keys):
-        # TODO: Insert the first batch from the initial images above rather than hard-coding the below value.
-        #  262144
-        queue_dict.append(torch.rand(262144))
+        #2048 is the output dimension of Resnet50
+        queue_dict.append(torch.rand(encoder.final_num_of_features * 2048))
     loss_fn = nn.BCEWithLogitsLoss()
 
     # The optimization is done only to the encoder weights and not to the momentum encoder
@@ -158,6 +168,16 @@ def pre_train(encoder,
 # TODO: Save encoder model in a directory within this repository after it has been pre-trained..
 # TODO: Load an encoder model saved locally after it has been pre-trained.
 
+def load_model(dir,filename=None):
+    if filename is None: #if filename is none get the latest file
+        file_type = '\*pt'
+        import glob
+        files = glob.glob(dir + file_type)
+        filename = max(files, key=os.path.getctime)
+
+    model = models.Encoder().double()
+    model.load_state_dict(torch.load(os.path.join(dir, filename)))
+    return model
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -176,6 +196,10 @@ if __name__ == '__main__':
     momentum = args.momentum
     bs = args.pretraining_batch_size
     number_of_keys = args.number_of_keys
+    encoder_output_dim = args.encoder_output_dim
+    t = args.temperature
+    m = args.m
+
     assert bs % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
                                      f'Choose a different batch size so it will be a multiple of the number of keys.'
 
@@ -190,8 +214,8 @@ if __name__ == '__main__':
                                            ]))
 
     train_loader = DataLoader(imagenette_dataset, batch_size=bs)
-    encoder = models.Encoder().double()
-    m_endcoder = models.Encoder().double()
+    encoder = models.Encoder(encoder_output_dim).double()
+    m_endcoder = models.Encoder(encoder_output_dim).double()
 
     # Train model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -204,7 +228,9 @@ if __name__ == '__main__':
                         epochs=epochs,
                         lr=lr,
                         momentum=momentum,
-                        number_of_keys=number_of_keys)
+                        number_of_keys=number_of_keys,
+                        t= t,
+                        m= m)
     # Freeze the encoder
     encoder.requires_grad_(False)
 
