@@ -5,9 +5,7 @@ import torch.nn as nn
 import random
 import numpy as np
 import json
-
-import consts_zach as consts
-# import consts_noam as consts
+import consts
 
 import models
 from data_loader import ImagenetteDataset, Rescale, RandomCrop,ToTensor

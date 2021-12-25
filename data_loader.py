@@ -4,8 +4,7 @@ import torch
 import numpy as np
 from skimage import io, transform
 
-import consts_zach as consts
-# import consts_noam as constssa
+import consts
 
 
 def create_csv_file(dir, filename):
