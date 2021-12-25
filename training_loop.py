@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import random
 import numpy as np
+import json
 
 import consts_noam as consts
 # import consts_noam as consts
@@ -42,7 +43,7 @@ parser.add_argument('--momentum',
                     help='The momentum value used to transfer weights between encoders during pre-training.')
 parser.add_argument('--pretraining_batch_size',
                     type=int,
-                    default=64,
+                    default=8,#64,
                     help='The mini-batch size used during pre-training with MoCo. Keys and queries are generated '
                          'from the entries of a mini-batch.')
 parser.add_argument('--number_of_keys',
@@ -68,7 +69,7 @@ parser.add_argument('--m',
 def pre_train(encoder,
               m_encoder,
               train_loader,
-              epochs=20,
+              epochs=3,
               lr=0.001,
               momentum=0.9,
               t=0.07,
@@ -168,16 +169,7 @@ def pre_train(encoder,
 # TODO: Save encoder model in a directory within this repository after it has been pre-trained..
 # TODO: Load an encoder model saved locally after it has been pre-trained.
 
-def load_model(dir,filename=None):
-    if filename is None: #if filename is none get the latest file
-        file_type = '\*pt'
-        import glob
-        files = glob.glob(dir + file_type)
-        filename = max(files, key=os.path.getctime)
 
-    model = models.Encoder().double()
-    model.load_state_dict(torch.load(os.path.join(dir, filename)))
-    return model
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -188,7 +180,11 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
+
+
+
 if __name__ == '__main__':
+    debug = True
     args = parser.parse_args()
     seed = args.seed
     epochs = args.pretraining_epochs
@@ -203,6 +199,9 @@ if __name__ == '__main__':
     assert bs % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
                                      f'Choose a different batch size so it will be a multiple of the number of keys.'
 
+    config = vars(args)
+    print(config)
+
     set_seed(seed)
 
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
@@ -211,7 +210,8 @@ if __name__ == '__main__':
                                                Rescale(256),
                                                RandomCrop(224),
                                                ToTensor()
-                                           ]))
+                                           ]),
+                                           debug=debug)
 
     train_loader = DataLoader(imagenette_dataset, batch_size=bs)
     encoder = models.Encoder(encoder_output_dim).double()
@@ -235,10 +235,17 @@ if __name__ == '__main__':
     encoder.requires_grad_(False)
 
     # Save model state
+    config_dict  ={}
+    for k in vars(args):
+        config_dict[k] = config[k]
+
     if not os.path.exists(SAVED_ENCODERS_DIR):
         os.mkdir(SAVED_ENCODERS_DIR)
-    file_name = "_".join(['resent50', str(epochs), 'epochs', str(lr).replace(".", "_"), 'lr']) + ".pt"
+    main_name = "_".join(['resent50', str(epochs), 'epochs', str(lr).replace(".", "_"), 'lr'])
+    file_name = main_name + ".pt"
     torch.save(encoder.state_dict(), os.path.join(SAVED_ENCODERS_DIR, file_name))
+    with open(os.path.join(SAVED_ENCODERS_DIR, main_name+'.json'), 'w') as fp:
+        json.dump(config_dict, fp, indent=4)
 
     # TODO: fine-tune a linear classifier + softmax layer on top of frozen encoder embeddings on Imagenette
     #  classification.

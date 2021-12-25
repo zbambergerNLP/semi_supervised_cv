@@ -105,7 +105,7 @@ class ToTensor(object):
 class ImagenetteDataset(Dataset):
     """Imagenette dataset."""
 
-    def __init__(self,  root_dir, csv_file, transform=None):
+    def __init__(self,  root_dir, csv_file, transform=None, debug = False):
         """
         Args:
             root_dir (string): Directory with all the images.
@@ -117,12 +117,16 @@ class ImagenetteDataset(Dataset):
         self.root_dir = root_dir
         self.csv_file = csv_file
         self.transform = transform
+        self.debug = debug
 
         with open(csv_file, newline='') as f:
             self.paths_to_images = f.read().splitlines()
 
     def __len__(self):
-        return len(self.paths_to_images)
+        if self.debug :
+            return 16
+        else:
+            return len(self.paths_to_images)
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
