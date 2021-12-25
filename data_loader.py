@@ -5,7 +5,7 @@ import numpy as np
 from skimage import io, transform
 
 import consts_zach as consts
-# import consts_noam as consts
+# import consts_noam as constssa
 
 
 def create_csv_file(dir, filename):

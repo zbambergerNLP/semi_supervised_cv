@@ -6,7 +6,7 @@ import random
 import numpy as np
 import json
 
-import consts_noam as consts
+import consts_zach as consts
 # import consts_noam as consts
 
 import models
@@ -19,10 +19,17 @@ import wandb
 
 SAVED_ENCODERS_DIR = './saved_encoders'
 
-wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+wandb.init(project="semi_supervised_cv", entity="zbamberger")
+# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for fine-tuning transformers on an argumentation downstream task.')
+parser.add_argument('--debug',
+                    type=bool,
+                    default=True,
+                    required=False,
+                    help="Whether or not to run pre-training in debug mode. In debug mode, the model learns over "
+                         "a subset of the original dataset.")
 parser.add_argument('--seed',
                     type=int,
                     default=1,
@@ -180,12 +187,9 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-
-
-
 if __name__ == '__main__':
-    debug = True
     args = parser.parse_args()
+    debug = args.debug
     seed = args.seed
     epochs = args.pretraining_epochs
     lr = args.pretraining_learning_rate
