@@ -90,7 +90,7 @@ def pre_train(encoder,
                              grayscale_conversion_prob=probs_initial[2])
     for i in range(number_of_keys):
         #2048 is the output dimension of Resnet50
-        queue_dict.append(torch.rand(encoder.final_num_of_features * consts.HIDDEN_REPRESENTATION_DIM))
+        queue_dict.append(torch.rand(encoder.final_num_of_features))
     loss_fn = nn.BCEWithLogitsLoss()
 
     # The optimization is done only to the encoder weights and not to the momentum encoder

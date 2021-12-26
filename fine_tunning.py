@@ -23,9 +23,8 @@ def freeze_encoder_init_last_fc(encoder):
 
 
 def add_classification_layers(model,hidden_size,num_of_labels):
-    # model.fc1 =  nn.Sequential(nn.Linear(hidden_size, num_of_labels),
-    #                            nn.Softmax())
-    model.fc1 =  nn.Linear(hidden_size, num_of_labels)
+    model.fc1 = nn.Linear(hidden_size, num_of_labels)
+    model.non_linear_func = nn.Softmax()
     print(model)
     return model
 
@@ -63,6 +62,7 @@ def fine_tune(model,train_loader, config, epochs,lr, momentum):
 
     model = freeze_encoder_init_last_fc(model)
     model = add_classification_layers(model, hidden_size=consts.HIDDEN_REPRESENTATION_DIM ,num_of_labels=consts.NUM_OF_CLASSES)
+    model = model.double()
     acc = []
     loss = []
     for epoch in range(epochs):
@@ -72,9 +72,9 @@ def fine_tune(model,train_loader, config, epochs,lr, momentum):
             optimizer.zero_grad()
 
             output = model(minibatch) #output shape is [batch_size,number_of_classes]
-            loss_minibatch = loss_fn()
+            loss_minibatch = loss_fn(output,torch.nn.functional.one_hot(lables.to(torch.int64), num_classes=consts.NUM_OF_CLASSES).to(float))
             preds = torch.argmax(output, dim =1)
-            acc1 = torch.eq(preds, lables).sum().float().item()
+            acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
             acc.append(acc1)
             loss.append(loss_minibatch)
 
