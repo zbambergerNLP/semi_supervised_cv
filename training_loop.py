@@ -8,20 +8,19 @@ import json
 import consts
 
 import models
-from data_loader import ImagenetteDataset, Rescale, RandomCrop,ToTensor
+from data_loader import ImagenetteDataset, Rescale, RandomCrop, ToTensor
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from augment import augment
 import argparse
 import wandb
 
-SAVED_ENCODERS_DIR = './saved_encoders'
 
-#wandb.init(project="semi_supervised_cv", entity="zbamberger")
-wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+wandb.init(project="semi_supervised_cv", entity="zbamberger")
+# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
-    description='Process flags for fine-tuning transformers on an argumentation downstream task.')
+    description='Process flags for unsupervised pre-training with MoCo.')
 parser.add_argument('--debug',
                     type=bool,
                     default=True,
@@ -48,7 +47,7 @@ parser.add_argument('--momentum',
                     help='The momentum value used to transfer weights between encoders during pre-training.')
 parser.add_argument('--pretraining_batch_size',
                     type=int,
-                    default=8,#64,
+                    default=64,
                     help='The mini-batch size used during pre-training with MoCo. Keys and queries are generated '
                          'from the entries of a mini-batch.')
 parser.add_argument('--number_of_keys',
@@ -70,6 +69,9 @@ parser.add_argument('--m',
                     default=0.999,
                     help='The momentume used to update the key\'s encoder parameters')
 
+
+# TODO: Document all functions and classes in this repository.
+
 # Train function
 def pre_train(encoder,
               m_encoder,
@@ -80,6 +82,17 @@ def pre_train(encoder,
               t=0.07,
               m=0.999,
               number_of_keys=3):
+    """
+    :param encoder:
+    :param m_encoder:
+    :param epochs:
+    :param lr:
+    :param momentum:
+    :param t:
+    :param m:
+    :param number_of_keys:
+    :return:
+    """
     wandb.watch(encoder)
     batch_size = train_loader.batch_size
     queue_dict = []  # Will add in FIFO order keys of mini batches
@@ -89,7 +102,7 @@ def pre_train(encoder,
                              horizontal_flip_prob=probs_initial[1],
                              grayscale_conversion_prob=probs_initial[2])
     for i in range(number_of_keys):
-        #2048 is the output dimension of Resnet50
+        # 2048 is the output dimension of Resnet50
         queue_dict.append(torch.rand(encoder.final_num_of_features))
     loss_fn = nn.BCEWithLogitsLoss()
 
@@ -100,8 +113,8 @@ def pre_train(encoder,
         print(f'start epoch {epoch}')
 
         batch_index = 0
-        epoch_labels = []
-        epcoh_preds = []
+        epoch_loss = []
+        epoch_acc = []
         for minibatch in train_loader:
 
             minibatch = minibatch.double()
@@ -130,21 +143,18 @@ def pre_train(encoder,
             queue_view = torch.concat([queue_dict[i].unsqueeze(dim=1) for i in range(len(queue_dict))], 1)
             q = torch.squeeze(q, dim=1)
 
-            # Negative logits are a tensor of shape [N, K]
-            l_neg = q @ queue_view.double()
-            logits = torch.concat((l_pos, l_neg), dim=1)  # Nx(k+1)
+            l_neg = q @ queue_view.double() # Negative logits are a tensor of shape [N, K]
+            logits = torch.concat((l_pos, l_neg), dim=1)  # Lots have shape [N, K + 1]
             labels = torch.zeros(l_pos.shape[0])
             one_hot_labels = torch.nn.functional.one_hot(labels.to(torch.int64), num_classes=logits.shape[1])
             loss = loss_fn(logits / t, one_hot_labels.double())
-            wandb.log({"loss": loss})
+            epoch_loss.append(loss)
             preds = torch.argmax(input=logits, dim=1)
-            num_equal = torch.sum(preds == labels)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
+            epoch_acc.append(accuracy)
+            wandb.log({"loss": loss, "accuracy": accuracy})
             
             if batch_index % 5 == 0:
-                print(f'labels: {labels}')
-                print(f'preds: {preds}')
-                print(f'num_equal: {num_equal} / {logits.shape[0]}')
                 print(f'Batch_index = {batch_index},  Loss = {loss}, Accuracy = {accuracy}')
 
             # SGD update query network
@@ -168,15 +178,17 @@ def pre_train(encoder,
                 queue_dict.pop(0)
 
             batch_index += 1
+        epoch_loss = sum(epoch_loss) / len(epoch_loss)
+        epoch_acc = sum(epoch_acc) / len(epoch_acc)
+        print(f'Epoch: {epoch},\tAverage Loss: {epoch_loss},\tAverage Accuracy: {epoch_acc}')
     print('Finished pre-training!')
     return encoder
 
-# TODO: Save encoder model in a directory within this repository after it has been pre-trained..
-# TODO: Load an encoder model saved locally after it has been pre-trained.
-
-
 
 def set_seed(seed=42):
+    """
+    :param seed:
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -220,7 +232,7 @@ if __name__ == '__main__':
     m_endcoder = models.Encoder(encoder_output_dim).double()
 
     # Train model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device(consts.CUDA if torch.cuda.is_available() else consts.CPU)
     encoder.to(device)
     m_endcoder.to(device)
 
@@ -237,19 +249,15 @@ if __name__ == '__main__':
     encoder.requires_grad_(False)
 
     # Save model state
-    config_dict  ={}
+    config_dict = {}
     for k in vars(args):
         config_dict[k] = config[k]
 
-    if not os.path.exists(SAVED_ENCODERS_DIR):
-        os.mkdir(SAVED_ENCODERS_DIR)
-    main_name = "_".join(['resent50', str(epochs), 'epochs', str(lr).replace(".", "_"), 'lr'])
-    file_name = main_name + ".pt"
-    torch.save(encoder.state_dict(), os.path.join(SAVED_ENCODERS_DIR, file_name))
-    with open(os.path.join(SAVED_ENCODERS_DIR, main_name+'.json'), 'w') as fp:
+    if not os.path.exists(consts.SAVED_ENCODERS_DIR):
+        os.mkdir(consts.SAVED_ENCODERS_DIR)
+    main_name = "_".join([consts.RESNET_50, str(epochs), consts.EPOCHS, str(lr).replace(".", "_"), 'lr'])
+    file_name = main_name + consts.MODEL_FILE_ENCODING
+    torch.save(encoder.state_dict(), os.path.join(consts.SAVED_ENCODERS_DIR, file_name))
+    config_path = os.path.join(consts.SAVED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
+    with open(config_path, 'w') as fp:
         json.dump(config_dict, fp, indent=4)
-
-    # TODO: fine-tune a linear classifier + softmax layer on top of frozen encoder embeddings on Imagenette
-    #  classification.
-    # TODO: Evaluate the fine-tuned model on Imagenette verification set. Top-1 accuracy should be > 0.85.
-
