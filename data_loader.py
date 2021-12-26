@@ -5,7 +5,7 @@ import numpy as np
 from skimage import io, transform
 
 import consts
-
+from augment import label_func
 
 def create_csv_file(dir, filename):
     # Open the file in the write mode
@@ -104,7 +104,7 @@ class ToTensor(object):
 class ImagenetteDataset(Dataset):
     """Imagenette dataset."""
 
-    def __init__(self,  root_dir, csv_file, transform=None, debug = False):
+    def __init__(self,  root_dir, csv_file, transform=None, labels =False, debug = False):
         """
         Args:
             root_dir (string): Directory with all the images.
@@ -116,7 +116,18 @@ class ImagenetteDataset(Dataset):
         self.root_dir = root_dir
         self.csv_file = csv_file
         self.transform = transform
+        self.labels = labels
         self.debug = debug
+        self.translate_labels =  { 'tench':0,
+                                    'English springer': 1,
+                                    'cassette player': 2,
+                                    'chain saw':3,
+                                    'church':4,
+                                    'French horn':5,
+                                    'garbage truck':6,
+                                    'gas pump':7,
+                                    'golf ball':8,
+                                    'parachute':9}
 
         with open(csv_file, newline='') as f:
             self.paths_to_images = f.read().splitlines()
@@ -136,10 +147,14 @@ class ImagenetteDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
-        return image
+        if self.labels:
+            tag = self.translate_labels[label_func(self.paths_to_images[idx])]
+            return image, tag
+        else:
+            return image
 
 
 if __name__ == '__main__':
-    print(consts.image_dir)
-    print(consts.csv_filename)
-    create_csv_file(dir=consts.image_dir, filename=consts.csv_filename)
+    print(consts.image_dir_validation)
+    print(consts.validation_filename)
+    create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)

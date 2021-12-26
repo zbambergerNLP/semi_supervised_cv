@@ -17,8 +17,8 @@ import wandb
 
 SAVED_ENCODERS_DIR = './saved_encoders'
 
-wandb.init(project="semi_supervised_cv", entity="zbamberger")
-# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+#wandb.init(project="semi_supervised_cv", entity="zbamberger")
+wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for fine-tuning transformers on an argumentation downstream task.')
@@ -90,7 +90,7 @@ def pre_train(encoder,
                              grayscale_conversion_prob=probs_initial[2])
     for i in range(number_of_keys):
         #2048 is the output dimension of Resnet50
-        queue_dict.append(torch.rand(encoder.final_num_of_features * 2048))
+        queue_dict.append(torch.rand(encoder.final_num_of_features * consts.HIDDEN_REPRESENTATION_DIM))
     loss_fn = nn.BCEWithLogitsLoss()
 
     # The optimization is done only to the encoder weights and not to the momentum encoder

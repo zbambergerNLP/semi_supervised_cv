@@ -2,13 +2,13 @@ import models
 import os
 import torch
 import json
-import consts_noam as consts
 from training_loop import set_seed
 from data_loader import ImagenetteDataset, Rescale, RandomCrop, ToTensor
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import torch.nn as nn
 import glob
+import consts
 
 
 def freeze_encoder_init_last_fc(encoder):
@@ -22,9 +22,17 @@ def freeze_encoder_init_last_fc(encoder):
     return encoder
 
 
+def add_classification_layers(model,hidden_size,num_of_labels):
+    # model.fc1 =  nn.Sequential(nn.Linear(hidden_size, num_of_labels),
+    #                            nn.Softmax())
+    model.fc1 =  nn.Linear(hidden_size, num_of_labels)
+    print(model)
+    return model
+
+
+
 def load_model(dir, filename=None):
     """
-
     :param dir: directory path where pt files and json configuration files exists
     :param filename: the name of the json and pt file with out the suffix
     :return: pre trained model that was loaded from a pt file and the relevant configuration dictionary that was loaded
@@ -48,25 +56,40 @@ def load_model(dir, filename=None):
     return model, config
 
 
-def fine_tune(model, config, epochs,lr, momentum):
+def fine_tune(model,train_loader, config, epochs,lr, momentum):
     loss_fn = nn.BCEWithLogitsLoss()
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
-    model.eval()
+    model = freeze_encoder_init_last_fc(model)
+    model = add_classification_layers(model, hidden_size=consts.HIDDEN_REPRESENTATION_DIM ,num_of_labels=consts.NUM_OF_CLASSES)
+    acc = []
+    loss = []
     for epoch in range(epochs):
         print(f'start epoch {epoch}')
-        for minibatch in train_loader:
-
+        for minibatch, lables in train_loader:
             minibatch = minibatch.double()
             optimizer.zero_grad()
 
-            output = model(minibatch)
-            loss = loss_fn()
+            output = model(minibatch) #output shape is [batch_size,number_of_classes]
+            loss_minibatch = loss_fn()
+            preds = torch.argmax(output, dim =1)
+            acc1 = torch.eq(preds, lables).sum().float().item()
+            acc.append(acc1)
+            loss.append(loss_minibatch)
+
+        avg_acc = sum(acc) / len(acc)
+        avg_loss  = sum(loss) / len(loss)
+        print(f'epoch = {epoch} avg_acc = {avg_acc} avg_loss = {avg_loss}')
+        return model
 
 
 if __name__ == '__main__':
     debug = True
+    epochs = 2 if debug else 100
+    lr = 0.01
+    momentum = 0.9
+
     pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR)
 
     set_seed(config['seed'])
@@ -78,6 +101,7 @@ if __name__ == '__main__':
                                                RandomCrop(224),
                                                ToTensor()
                                            ]),
+                                           labels=True,
                                            debug=debug)
 
     train_loader = DataLoader(imagenette_dataset, batch_size=config['pretraining_batch_size'])
@@ -89,6 +113,10 @@ if __name__ == '__main__':
                                                           RandomCrop(224),
                                                           ToTensor()
                                                       ]),
+                                                      labels=True,
                                                       debug=debug)
+
     validation_loader = DataLoader(imagenette_dataset_validation, batch_size=config['pretraining_batch_size'])
+
+    fine_tuned_model = fine_tune(pre_trained_model,train_loader,config,epochs,lr,momentum)
 

@@ -24,17 +24,7 @@ label_dict = dict(
     n03888257='parachute'
 )
 
-# class_num_dict =   { 'tench' = 0,
-#     'English springer' = 1,
-#     'cassette player'= 2,
-#     'chain saw'=3,
-#     'church'=4,
-#     'French horn'=5,
-#     'garbage truck'=6,
-#     'gas pump'=7,
-#     'golf ball'=8,
-#     'parachute'=9,
-# }
+
 
 
 def augment_images(augmentation_coin_tosses, images, color_jitter_transform):
