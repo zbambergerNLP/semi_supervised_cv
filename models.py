@@ -18,7 +18,6 @@ class Encoder(nn.Module):
         self.fc1 = nn.Linear(consts.HIDDEN_REPRESENTATION_DIM, self.final_num_of_features)
         self.non_linear_func = nn.ReLU()
 
-
     def forward(self, x):
         x = self.resnet50(x)
         x = torch.flatten(x, start_dim=1)

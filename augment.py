@@ -25,8 +25,6 @@ label_dict = dict(
 )
 
 
-
-
 def augment_images(augmentation_coin_tosses, images, color_jitter_transform):
     """
     Apply augmentations y to image x based on the coin toss value in augmentation_coin_tosses[x][y].

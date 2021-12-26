@@ -7,6 +7,7 @@ from skimage import io, transform
 import consts
 from augment import label_func
 
+
 def create_csv_file(dir, filename):
     # Open the file in the write mode
     with open(filename, 'w') as fileHandle:
@@ -104,14 +105,14 @@ class ToTensor(object):
 class ImagenetteDataset(Dataset):
     """Imagenette dataset."""
 
-    def __init__(self,  root_dir, csv_file, transform=None, labels =False, debug = False):
+    def __init__(self,  root_dir, csv_file, transform=None, labels=False, debug=False):
         """
-        Args:
-            root_dir (string): Directory with all the images.
-            csv_file (string): Path to the csv file with paths to all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-
+        :param root_dir: The string directory with all the images.
+        :param csv_file: String path to the csv file with paths to all the images.
+        :param transform: (callable, optional) transform to be applied on a sample.
+        :param labels:
+        :param debug:
+        :return:
         """
         self.root_dir = root_dir
         self.csv_file = csv_file
