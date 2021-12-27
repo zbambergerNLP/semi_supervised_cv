@@ -230,7 +230,7 @@ if __name__ == '__main__':
                                            ]),
                                            debug=debug)
 
-    train_loader = DataLoader(imagenette_dataset, batch_size=bs)
+    train_loader = DataLoader(imagenette_dataset, batch_size=bs, shuffle=True)
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
 

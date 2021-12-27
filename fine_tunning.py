@@ -166,7 +166,7 @@ if __name__ == '__main__':
                                            labels=True,
                                            debug=debug)
 
-    train_loader = DataLoader(imagenette_dataset, batch_size=args.fine_tuning_batch_size)
+    train_loader = DataLoader(imagenette_dataset, batch_size=args.fine_tuning_batch_size, shuffle=True)
 
     imagenette_dataset_validation = ImagenetteDataset(csv_file=consts.validation_filename,
                                                       root_dir=consts.image_dir_validation,
@@ -178,7 +178,9 @@ if __name__ == '__main__':
                                                       labels=True,
                                                       debug=debug)
 
-    validation_loader = DataLoader(imagenette_dataset_validation, batch_size=config['pretraining_batch_size'])
+    validation_loader = DataLoader(imagenette_dataset_validation,
+                                   batch_size=config['pretraining_batch_size'],
+                                   shuffle=True)
 
     # Note: momentum is perceived as a tuple of floats with length 1. The momentum value is the sole entry in this
     # tuple.
