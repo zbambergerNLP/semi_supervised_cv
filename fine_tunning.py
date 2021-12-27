@@ -17,7 +17,7 @@ import wandb
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
-parser.add_argument('--debug',
+parser.add_argument('--fine_tuning_debug',
                     type=bool,
                     default=True,
                     required=False,
@@ -126,8 +126,10 @@ def fine_tune(model, train_loader, epochs, lr, momentum):
             minibatch = minibatch.double()
             optimizer.zero_grad()
 
-            output = model(minibatch) #output shape is [batch_size,number_of_classes]
-            loss_minibatch = loss_fn(output,torch.nn.functional.one_hot(lables.to(torch.int64), num_classes=consts.NUM_OF_CLASSES).to(float))
+            output = model(minibatch)  # Output shape is [batch_size,number_of_classes]
+            loss_minibatch = loss_fn(output,
+                                     torch.nn.functional.one_hot(lables.to(torch.int64),
+                                                                 num_classes=consts.NUM_OF_CLASSES).to(float))
             preds = torch.argmax(output, dim =1)
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
             wandb.log({"mini-batch loss": loss_minibatch,
@@ -146,7 +148,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum):
 if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
-    debug = args.debug
+    debug = args.fine_tuning_debug
     epochs = 2 if debug else args.fine_tuning_epochs
     lr = args.fine_tuning_learning_rate
     momentum = args.fine_tuning_momentum,

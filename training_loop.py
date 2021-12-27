@@ -21,7 +21,7 @@ wandb.init(project="semi_supervised_cv", entity="zbamberger")
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
-parser.add_argument('--debug',
+parser.add_argument('--pre_training_debug',
                     type=bool,
                     default=True,
                     required=False,
@@ -152,7 +152,8 @@ def pre_train(encoder,
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
             epoch_acc.append(accuracy)
-            wandb.log({"loss": loss, "accuracy": accuracy})
+            wandb.log({"mini-batch loss": loss,
+                       "mini-batch accuracy": accuracy})
             
             if batch_index % 5 == 0:
                 print(f'Batch_index = {batch_index},  Loss = {loss}, Accuracy = {accuracy}')
@@ -181,6 +182,8 @@ def pre_train(encoder,
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
         print(f'Epoch: {epoch},\tAverage Loss: {epoch_loss},\tAverage Accuracy: {epoch_acc}')
+        wandb.log({"epoch loss": epoch_loss,
+                   "epoch accuracy": epoch_acc})
     print('Finished pre-training!')
     return encoder
 
@@ -199,7 +202,7 @@ def set_seed(seed=42):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    debug = args.debug
+    debug = args.pre_training_debug
     seed = args.seed
     epochs = args.pretraining_epochs
     lr = args.pretraining_learning_rate
