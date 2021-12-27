@@ -17,9 +17,14 @@ import wandb
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
+parser.add_argument('--pretrained_encoder_file_name',
+                    type=str,
+                    default=None,
+                    required=False,
+                    help="The filename of a saved encoder after MoCo pre-training.")
 parser.add_argument('--fine_tuning_debug',
                     type=bool,
-                    default=True,
+                    default=False,
                     required=False,
                     help="Whether or not to run fine-tuning in debug mode. In debug mode, the model learns over "
                          "a subset of the original dataset.")
@@ -154,7 +159,7 @@ if __name__ == '__main__':
     momentum = args.fine_tuning_momentum,
     if not os.path.exists(consts.validation_filename):
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
-    pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR)
+    pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR, filename=args.pretrained_encoder_file_name)
     set_seed(config['seed'])
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
