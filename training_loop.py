@@ -14,10 +14,10 @@ from torchvision import transforms
 from augment import augment
 import argparse
 import wandb
+import matplotlib.pyplot as plt
 
-
-wandb.init(project="semi_supervised_cv", entity="zbamberger")
-# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+# wandb.init(project="semi_supervised_cv", entity="zbamberger")
+wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
@@ -81,7 +81,8 @@ def pre_train(encoder,
               momentum=0.9,
               t=0.07,
               m=0.999,
-              number_of_keys=3):
+              number_of_keys=3,
+              debug = False):
     """
     :param encoder:
     :param m_encoder:
@@ -139,9 +140,20 @@ def pre_train(encoder,
                           horizontal_flip_prob=0.5,
                           grayscale_conversion_prob=0.2,
                           gaussian_blur_prob=0.5)
+
+            if debug:
+                if batch_index % 5 == 0:
+                    plt.figure()
+                    f, ax = plt.subplots(2, 1)
+                    ax[0].imshow(x_q[0].T)
+                    ax[1].imshow(x_k[0].T)
+                    plt.show()
+
             q = encoder.forward(x_q)  # Queries have shape [N, C] where C = 2048 * 1 * 128
-            k = m_encoder.forward(x_k)  # Keys have shape [N, C]
-            k = k.detach()  # No gradients to keys
+
+            with torch.no_grad():
+                k = m_encoder.forward(x_k)  # Keys have shape [N, C]
+                k = k.detach()  # No gradients to keys
 
             # Positive logits have shape [N, 1]
             q = torch.flatten(q, start_dim=1)
@@ -151,6 +163,7 @@ def pre_train(encoder,
             l_pos = (q @ k).squeeze(dim=2)
 
             queue_view = torch.concat([queue_dict[i].unsqueeze(dim=1) for i in range(len(queue_dict))], 1)
+            queue_view.detach()
             q = torch.squeeze(q, dim=1)
 
             l_neg = q @ queue_view.double() # Negative logits are a tensor of shape [N, K]
@@ -172,21 +185,23 @@ def pre_train(encoder,
             loss.backward()
             optimizer.step()  # Update only encoder parmas and not m_encoder params
 
-            # Momentum update key network
-            m_encoder_state_dict = m_encoder.state_dict()
-            encoder_state_dict = encoder.state_dict()
 
-            for m_name, m_param in m_encoder_state_dict.items():
-                # Transform the parameter as required.
-                transformed_param = m * m_param + (1 - m) * encoder_state_dict[m_name]
-                # Update the parameter.
-                m_encoder_state_dict[m_name].copy_(transformed_param)
 
-            for i in range(k.shape[0]):
-                # Enqueue queue and queue dict
-                queue_dict.append(k[i].squeeze(dim=1))
-                # Dequeue the oldest mini batch
-                queue_dict.pop(0)
+            with torch.no_grad():  # no gradient to keys
+                # Momentum update key network
+                m_encoder_state_dict = m_encoder.state_dict()
+                encoder_state_dict = encoder.state_dict()
+                for m_name, m_param in m_encoder_state_dict.items():
+                    # Transform the parameter as required.
+                    transformed_param = m * m_param + (1 - m) * encoder_state_dict[m_name]
+                    # Update the parameter.
+                    m_encoder_state_dict[m_name].copy_(transformed_param)
+
+                for i in range(k.shape[0]):
+                    # Enqueue queue and queue dict
+                    queue_dict.append(k[i].squeeze(dim=1))
+                    # Dequeue the oldest mini batch
+                    queue_dict.pop(0)
 
             batch_index += 1
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
@@ -241,7 +256,7 @@ if __name__ == '__main__':
                                            debug=debug)
 
     train_loader = DataLoader(imagenette_dataset, batch_size=bs, shuffle=True)
-    # TODO: set the m_encoder to be a copy of the encoder.
+
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
 
@@ -262,7 +277,8 @@ if __name__ == '__main__':
                         momentum=momentum,
                         number_of_keys=number_of_keys,
                         t= t,
-                        m= m)
+                        m= m,
+                        debug = debug)
     # Freeze the encoder
     encoder.requires_grad_(False)
 
