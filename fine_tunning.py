@@ -118,8 +118,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
+    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -131,6 +131,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
     model = model.double()
     acc = []
     loss = []
+
     for epoch in range(epochs):
         print(f'start epoch {epoch}')
         for minibatch, lables in train_loader:
@@ -148,20 +149,21 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
             #            "mini-batch accuracy@1": acc1})
             acc.append(acc1)
             loss.append(loss_minibatch)
+            print(f'epoch = {epoch} acc1 = {acc1} mini_batch_loss = {loss_minibatch}')
 
         avg_acc = sum(acc) / len(acc)
         avg_loss = sum(loss) / len(loss)
         wandb.log({'epoch loss': avg_loss,
                    'epoch accuracy': avg_acc})
         print(f'epoch = {epoch} avg_acc = {avg_acc} avg_loss = {avg_loss}')
-        return model
+    return model
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     debug = args.fine_tuning_debug
-    epochs = 2 if debug else args.fine_tuning_epochs
+    epochs = 6 if debug else args.fine_tuning_epochs
     lr = args.fine_tuning_learning_rate
     momentum = args.fine_tuning_momentum,
     if not os.path.exists(consts.validation_filename):
