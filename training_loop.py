@@ -16,8 +16,8 @@ import argparse
 import wandb
 
 
-wandb.init(project="semi_supervised_cv", entity="zbamberger")
-# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+# wandb.init(project="semi_supervised_cv", entity="zbamberger")
+wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
@@ -239,6 +239,10 @@ if __name__ == '__main__':
     device = torch.device(consts.CUDA if torch.cuda.is_available() else consts.CPU)
     encoder.to(device)
     m_endcoder.to(device)
+
+    # initialize  parameters in both encoders to be the same
+    for param, m_param in zip(encoder.parameters(), m_endcoder.parameters()):
+        m_param.data.copy_(param.data)
 
     encoder = pre_train(encoder,
                         m_endcoder,
