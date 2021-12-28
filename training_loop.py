@@ -16,8 +16,7 @@ import argparse
 import wandb
 import matplotlib.pyplot as plt
 
-wandb.init(project="semi_supervised_cv", entity="zbamberger")
-# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
@@ -127,11 +126,12 @@ def pre_train(encoder,
 
             if debug:
                 if batch_index % 5 == 0:
-                    plt.figure()
-                    f, ax = plt.subplots(2, 1)
-                    ax[0].imshow(x_q[0].T)
-                    ax[1].imshow(x_k[0].T)
-                    plt.show()
+                    # plt.figure()
+                    # f, ax = plt.subplots(2, 1)
+                    # ax[0].imshow(x_q[0].T)
+                    # ax[1].imshow(x_k[0].T)
+                    # plt.show()
+                    pass
 
             q = encoder.forward(x_q)  # Queries have shape [N, C] where C = 2048 * 1 * 128
 
@@ -217,11 +217,26 @@ if __name__ == '__main__':
     t = args.temperature
     m = args.m
 
-    assert bs % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
+    config_args = {'epochs':epochs,
+                  'lr': lr,
+                  'momentum':momentum,
+                  'bs':bs,
+                  'mul_for_num_of_keys':1,
+                  'encoder_output_dim': encoder_output_dim,
+                  't':t,
+                  'm':m}
+
+    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config = args)
+    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
+    config = wandb.config
+
+    number_of_keys =config.mul_for_num_of_keys * config.bs
+    assert config.bs % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
                                      f'Choose a different batch size so it will be a multiple of the number of keys.'
 
-    config = vars(args)
+
     print(config)
+
 
     set_seed(seed)
 
@@ -234,7 +249,7 @@ if __name__ == '__main__':
                                            ]),
                                            debug=debug)
 
-    train_loader = DataLoader(imagenette_dataset, batch_size=bs, shuffle=True)
+    train_loader = DataLoader(imagenette_dataset, batch_size=config.bs, shuffle=True)
 
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
@@ -251,24 +266,24 @@ if __name__ == '__main__':
     encoder = pre_train(encoder,
                         m_endcoder,
                         train_loader,
-                        epochs=epochs,
-                        lr=lr,
-                        momentum=momentum,
+                        epochs=config.epochs,
+                        lr=config.lr,
+                        momentum=config.momentum,
                         number_of_keys=number_of_keys,
-                        t= t,
-                        m= m,
+                        t= config.t,
+                        m= config.m,
                         debug = debug)
     # Freeze the encoder
     encoder.requires_grad_(False)
 
     # Save model state
     config_dict = {}
-    for k in vars(args):
+    for k in config.keys():
         config_dict[k] = config[k]
 
     if not os.path.exists(consts.SAVED_ENCODERS_DIR):
         os.mkdir(consts.SAVED_ENCODERS_DIR)
-    main_name = "_".join([consts.RESNET_50, str(epochs), consts.EPOCHS, str(lr).replace(".", "_"), 'lr'])
+    main_name = "_".join([consts.RESNET_50, str(config.epochs), consts.EPOCHS, str(config.lr).replace(".", "_"), 'lr'])
     file_name = main_name + consts.MODEL_FILE_ENCODING
     torch.save(encoder.state_dict(), os.path.join(consts.SAVED_ENCODERS_DIR, file_name))
     config_path = os.path.join(consts.SAVED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
