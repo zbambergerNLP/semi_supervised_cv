@@ -16,8 +16,8 @@ import argparse
 import wandb
 import matplotlib.pyplot as plt
 
-# wandb.init(project="semi_supervised_cv", entity="zbamberger")
-wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+wandb.init(project="semi_supervised_cv", entity="zbamberger")
+# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
@@ -95,22 +95,6 @@ def pre_train(encoder,
     :return:
     """
     wandb.watch(encoder)
-    wandb.run.define_metric(
-        name="mini-batch accuracy",
-        step_metric="mini-batch index",
-        goal="maximize")
-    wandb.run.define_metric(
-        name="mini-batch loss",
-        step_metric="mini-batch index",
-        goal="minimize")
-    wandb.run.define_metric(
-        name="epoch accuracy",
-        step_metric="epoch index",
-        goal="maximize")
-    wandb.run.define_metric(
-        name="epoch loss",
-        step_metric="epoch index",
-        goal="minimize")
     queue_dict = []  # Will add in FIFO order keys of mini batches
     for i in range(number_of_keys):
         # 2048 is the output dimension of Resnet50
@@ -175,17 +159,12 @@ def pre_train(encoder,
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
             epoch_acc.append(accuracy)
-            wandb.log({"mini-batch loss": loss,
-                       "mini-batch accuracy": accuracy})
-            
             if batch_index % 5 == 0:
                 print(f'\tBatch Index = {batch_index},\tBatch Loss = {loss},\tBatch Accuracy = {accuracy}')
 
             # SGD update query network
             loss.backward()
             optimizer.step()  # Update only encoder parmas and not m_encoder params
-
-
 
             with torch.no_grad():  # no gradient to keys
                 # Momentum update key network
