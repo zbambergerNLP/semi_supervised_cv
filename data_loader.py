@@ -13,7 +13,7 @@ def create_csv_file(dir, filename):
     with open(filename, 'w') as fileHandle:
         for d in os.listdir(dir):
             d_full_path = os.path.join(dir, d)
-            if os.path.isdir(d_full_path):
+            if os.path.isdir(d_full_path) and d in consts.IMAGENETTE_LABEL_DICT:
                 for path in os.listdir(d_full_path):
                     full_path = os.path.join(d_full_path, path)
                     if os.path.isfile(full_path):
@@ -99,7 +99,7 @@ class ToTensor(object):
             image = np.repeat(image,3,axis=2)
 
         image = image.transpose((2, 0, 1))
-        return  torch.from_numpy(image)
+        return torch.from_numpy(image)
 
 
 class ImagenetteDataset(Dataset):
@@ -119,22 +119,22 @@ class ImagenetteDataset(Dataset):
         self.transform = transform
         self.labels = labels
         self.debug = debug
-        self.translate_labels =  { 'tench':0,
-                                    'English springer': 1,
-                                    'cassette player': 2,
-                                    'chain saw':3,
-                                    'church':4,
-                                    'French horn':5,
-                                    'garbage truck':6,
-                                    'gas pump':7,
-                                    'golf ball':8,
-                                    'parachute':9}
+        self.translate_labels = {'tench': 0,
+                                 'English springer': 1,
+                                 'cassette player': 2,
+                                 'chain saw': 3,
+                                 'church': 4,
+                                 'French horn': 5,
+                                 'garbage truck': 6,
+                                 'gas pump': 7,
+                                 'golf ball': 8,
+                                 'parachute': 9}
 
         with open(csv_file, newline='') as f:
             self.paths_to_images = f.read().splitlines()
 
     def __len__(self):
-        if self.debug :
+        if self.debug:
             return 16
         else:
             return len(self.paths_to_images)

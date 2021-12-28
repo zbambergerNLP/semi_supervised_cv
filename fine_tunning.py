@@ -86,6 +86,8 @@ def load_model(dir, filename=None):
     :return: pre trained model that was loaded from a pt file and the relevant configuration dictionary that was loaded
      from a json file
     """
+    assert os.path.exists(dir), "Directory that is supposed to contain pre-trained models does not exist. " \
+                                "Please re-run `training_loop.py`"
     if filename is None:  # If filename is none get the latest file
         file_type = '/*pt'
         files = glob.glob(dir + file_type)
@@ -120,7 +122,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
     model = freeze_encoder_init_last_fc(model)
-    model = add_classification_layers(model, hidden_size=consts.HIDDEN_REPRESENTATION_DIM,
+    model = add_classification_layers(model,
+                                      hidden_size=consts.HIDDEN_REPRESENTATION_DIM,
                                       num_of_labels=consts.NUM_OF_CLASSES)
     model = model.double()
     acc = []
@@ -135,7 +138,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum):
             loss_minibatch = loss_fn(output,
                                      torch.nn.functional.one_hot(lables.to(torch.int64),
                                                                  num_classes=consts.NUM_OF_CLASSES).to(float))
-            preds = torch.argmax(output, dim =1)
+            preds = torch.argmax(output, dim=1)
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
             wandb.log({"mini-batch loss": loss_minibatch,
                        "mini-batch accuracy@1": acc1})
@@ -160,7 +163,7 @@ if __name__ == '__main__':
     if not os.path.exists(consts.validation_filename):
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
     pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR, filename=args.pretrained_encoder_file_name)
-    set_seed(config['seed'])
+    set_seed(config[consts.SEED])
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
                                            transform=transforms.Compose([
@@ -170,9 +173,7 @@ if __name__ == '__main__':
                                            ]),
                                            labels=True,
                                            debug=debug)
-
     train_loader = DataLoader(imagenette_dataset, batch_size=args.fine_tuning_batch_size, shuffle=True)
-
     imagenette_dataset_validation = ImagenetteDataset(csv_file=consts.validation_filename,
                                                       root_dir=consts.image_dir_validation,
                                                       transform=transforms.Compose([

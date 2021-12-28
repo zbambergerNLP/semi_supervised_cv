@@ -156,7 +156,7 @@ def pre_train(encoder,
                        "mini-batch accuracy": accuracy})
             
             if batch_index % 5 == 0:
-                print(f'Batch_index = {batch_index},  Loss = {loss}, Accuracy = {accuracy}')
+                print(f'\tBatch Index = {batch_index},\tBatch Loss = {loss},\tBatch Accuracy = {accuracy}')
 
             # SGD update query network
             loss.backward()
@@ -181,7 +181,7 @@ def pre_train(encoder,
             batch_index += 1
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
-        print(f'Epoch: {epoch},\tAverage Loss: {epoch_loss},\tAverage Accuracy: {epoch_acc}')
+        print(f'Epoch #:{epoch},\tEpoch Average Loss: {epoch_loss},\tEpoch Average Accuracy: {epoch_acc}')
         wandb.log({"epoch loss": epoch_loss,
                    "epoch accuracy": epoch_acc})
     print('Finished pre-training!')
@@ -231,6 +231,7 @@ if __name__ == '__main__':
                                            debug=debug)
 
     train_loader = DataLoader(imagenette_dataset, batch_size=bs, shuffle=True)
+    # TODO: set the m_encoder to be a copy of the encoder.
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
 
