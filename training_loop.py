@@ -162,9 +162,7 @@ def pre_train(encoder,
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
             epoch_acc.append(accuracy)
-            wandb.log({"epoch index": epoch,
-                       "mini-batch index": minibatch_index,
-                       "mini-batch loss": loss,
+            wandb.log({"mini-batch loss": loss,
                        "mini-batch accuracy": accuracy})
             
             if batch_index % 5 == 0:
@@ -194,8 +192,7 @@ def pre_train(encoder,
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
         print(f'Epoch #:{epoch},\tEpoch Average Loss: {epoch_loss},\tEpoch Average Accuracy: {epoch_acc}')
-        wandb.log({"epoch index": epoch,
-                   "epoch loss": epoch_loss,
+        wandb.log({"epoch loss": epoch_loss,
                    "epoch accuracy": epoch_acc})
     print('Finished pre-training!')
     return encoder
