@@ -145,6 +145,12 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
                                      #                             num_classes=consts.NUM_OF_CLASSES).to(float))
             preds = torch.argmax(output, dim=1)
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
+
+            loss_minibatch.backward()
+            optimizer.step()
+
+            print(f'preds ={preds}')
+            print(f'lables={lables}')
             # wandb.log({"mini-batch loss": loss_minibatch,
             #            "mini-batch accuracy@1": acc1})
             acc.append(acc1)
@@ -163,7 +169,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     debug = args.fine_tuning_debug
-    epochs = 6 if debug else args.fine_tuning_epochs
+    epochs = 40 if debug else args.fine_tuning_epochs
     lr = args.fine_tuning_learning_rate
     momentum = args.fine_tuning_momentum,
     if not os.path.exists(consts.validation_filename):
