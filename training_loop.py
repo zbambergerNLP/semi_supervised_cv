@@ -16,8 +16,8 @@ import argparse
 import wandb
 
 
-# wandb.init(project="semi_supervised_cv", entity="zbamberger")
-wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
+wandb.init(project="semi_supervised_cv", entity="zbamberger")
+# wandb.init(project="semi_supervised_cv", entity="noambenmoshe")
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
@@ -94,13 +94,7 @@ def pre_train(encoder,
     :return:
     """
     wandb.watch(encoder)
-    batch_size = train_loader.batch_size
     queue_dict = []  # Will add in FIFO order keys of mini batches
-    probs_initial = torch.rand(3)
-    initial_images = augment(images=next(iter(train_loader)).double(),
-                             jitter_prob=probs_initial[0],
-                             horizontal_flip_prob=probs_initial[1],
-                             grayscale_conversion_prob=probs_initial[2])
     for i in range(number_of_keys):
         # 2048 is the output dimension of Resnet50
         queue_dict.append(torch.rand(encoder.final_num_of_features))
@@ -119,16 +113,16 @@ def pre_train(encoder,
 
             minibatch = minibatch.double()
             optimizer.zero_grad()
-            probs_q = torch.rand(3)
-            probs_k = torch.rand(3)
             x_q = augment(images=minibatch,
-                          jitter_prob=probs_q[0],
-                          horizontal_flip_prob=probs_q[1],
-                          grayscale_conversion_prob=probs_q[2])
+                          jitter_prob=0.8,
+                          horizontal_flip_prob=0.5,
+                          grayscale_conversion_prob=0.2,
+                          gaussian_blur_prob=0.5)
             x_k = augment(images=minibatch,
-                          jitter_prob=probs_k[0],
-                          horizontal_flip_prob=probs_k[1],
-                          grayscale_conversion_prob=probs_k[2])
+                          jitter_prob=0.8,
+                          horizontal_flip_prob=0.5,
+                          grayscale_conversion_prob=0.2,
+                          gaussian_blur_prob=0.5)
             q = encoder.forward(x_q)  # Queries have shape [N, C] where C = 2048 * 1 * 128
             k = m_encoder.forward(x_k)  # Keys have shape [N, C]
             k = k.detach()  # No gradients to keys
