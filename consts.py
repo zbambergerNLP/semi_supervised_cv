@@ -1,6 +1,6 @@
-image_dir = "./imagewang-160/train"
+image_dir = "./imagenette2_160/train"
 csv_filename = "./imagenette2_160.csv"
-image_dir_validation = "./imagewang-160/val"
+image_dir_validation = "./imagenette2_160/val"
 validation_filename = "./imagenette2_160_validation.txt"
 SAVED_ENCODERS_DIR = './saved_encoders'
 NUM_OF_CLASSES = 10
