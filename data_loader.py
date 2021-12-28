@@ -156,6 +156,6 @@ class ImagenetteDataset(Dataset):
 
 
 if __name__ == '__main__':
-    print(consts.image_dir_validation)
-    print(consts.validation_filename)
+    print(consts.image_dir)
+    print(consts.csv_filename)
     create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
