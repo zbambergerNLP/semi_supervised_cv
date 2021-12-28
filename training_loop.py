@@ -80,7 +80,7 @@ def pre_train(encoder,
               t=0.07,
               m=0.999,
               number_of_keys=3,
-              debug = False):
+              debug=False):
     """
     :param encoder:
     :param m_encoder:
