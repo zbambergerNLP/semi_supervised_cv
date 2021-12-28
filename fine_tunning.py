@@ -118,11 +118,14 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+
+    # Filter out model parameters that don't require gradient updates.
+    parameters = list(filter(lambda p: p.requires_grad, model.parameters()))
+    optimizer = torch.optim.SGD(parameters, lr=lr, momentum=momentum)
 
     model = freeze_encoder_init_last_fc(model)
     model = add_classification_layers(model,
@@ -139,20 +142,15 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
             optimizer.zero_grad()
 
             output = model(minibatch)  # Output shape is [batch_size,number_of_classes]
-            loss_minibatch = loss_fn(output,
-                                     lables.to(torch.int64))
-                                     # torch.nn.functional.one_hot(lables.to(torch.int64),
-                                     #                             num_classes=consts.NUM_OF_CLASSES).to(float))
+            loss_minibatch = loss_fn(output, lables.to(torch.int64))
             preds = torch.argmax(output, dim=1)
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
 
             loss_minibatch.backward()
             optimizer.step()
 
-            print(f'preds ={preds}')
-            print(f'lables={lables}')
-            # wandb.log({"mini-batch loss": loss_minibatch,
-            #            "mini-batch accuracy@1": acc1})
+            print(f'preds = {preds}')
+            print(f'lables = {lables}')
             acc.append(acc1)
             loss.append(loss_minibatch)
             print(f'epoch = {epoch} acc1 = {acc1} mini_batch_loss = {loss_minibatch}')
@@ -176,12 +174,15 @@ if __name__ == '__main__':
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
     pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR, filename=args.pretrained_encoder_file_name)
     set_seed(config[consts.SEED])
+    normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                     std=[0.25, 0.25, 0.25])
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
                                            transform=transforms.Compose([
                                                Rescale(256),
                                                RandomCrop(224),
-                                               ToTensor()
+                                               ToTensor(),
+                                               normalize
                                            ]),
                                            labels=True,
                                            debug=debug)
@@ -191,7 +192,8 @@ if __name__ == '__main__':
                                                       transform=transforms.Compose([
                                                           Rescale(256),
                                                           RandomCrop(224),
-                                                          ToTensor()
+                                                          ToTensor(),
+                                                          normalize
                                                       ]),
                                                       labels=True,
                                                       debug=debug)
