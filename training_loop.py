@@ -94,6 +94,22 @@ def pre_train(encoder,
     :return:
     """
     wandb.watch(encoder)
+    wandb.run.define_metric(
+        name="mini-batch accuracy",
+        step_metric="mini-batch index",
+        goal="maximize")
+    wandb.run.define_metric(
+        name="mini-batch loss",
+        step_metric="mini-batch index",
+        goal="minimize")
+    wandb.run.define_metric(
+        name="epoch accuracy",
+        step_metric="epoch index",
+        goal="maximize")
+    wandb.run.define_metric(
+        name="epoch loss",
+        step_metric="epoch index",
+        goal="minimize")
     queue_dict = []  # Will add in FIFO order keys of mini batches
     for i in range(number_of_keys):
         # 2048 is the output dimension of Resnet50
@@ -109,7 +125,7 @@ def pre_train(encoder,
         batch_index = 0
         epoch_loss = []
         epoch_acc = []
-        for minibatch in train_loader:
+        for minibatch_index, minibatch in enumerate(train_loader):
 
             minibatch = minibatch.double()
             optimizer.zero_grad()
@@ -146,7 +162,9 @@ def pre_train(encoder,
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
             epoch_acc.append(accuracy)
-            wandb.log({"mini-batch loss": loss,
+            wandb.log({"epoch index": epoch,
+                       "mini-batch index": minibatch_index,
+                       "mini-batch loss": loss,
                        "mini-batch accuracy": accuracy})
             
             if batch_index % 5 == 0:
@@ -176,7 +194,8 @@ def pre_train(encoder,
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
         print(f'Epoch #:{epoch},\tEpoch Average Loss: {epoch_loss},\tEpoch Average Accuracy: {epoch_acc}')
-        wandb.log({"epoch loss": epoch_loss,
+        wandb.log({"epoch index": epoch,
+                   "epoch loss": epoch_loss,
                    "epoch accuracy": epoch_acc})
     print('Finished pre-training!')
     return encoder
