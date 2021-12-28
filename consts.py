@@ -12,7 +12,16 @@ RESNET_50 = 'resent50'
 EPOCHS = 'epochs'
 CUDA = 'cude'
 CPU = 'cpu'
+
+# Configs
 SEED = 'seed'
+LEARNING_RATE = 'learning_rate'
+MOMENTUM = 'momentum'
+BATCH_SIZE = 'batch_size'
+MUL_FOR_NUM_KEYS = 'mul_for_num_of_keys'
+ENCODER_OUTPUT_DIM = 'encoder_output_dim'
+TEMPERATURE = "temperature"
+PARAM_TRANSFER_MOMENTUM = 'param_transfer_momentum'
 
 
 IMAGENETTE_LABEL_DICT = dict(

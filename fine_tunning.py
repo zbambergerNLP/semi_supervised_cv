@@ -101,12 +101,12 @@ def load_model(dir, filename=None):
     with open(json_filename, "r") as fp:
         config = json.load(fp)
 
-    model = models.Encoder(config['encoder_output_dim']).double()
+    model = models.Encoder(config[consts.ENCODER_OUTPUT_DIM]).double()
     model.load_state_dict(torch.load(filename))
     return model, config
 
 
-def fine_tune(model, train_loader, epochs, lr, momentum):
+def fine_tune(model, train_loader, epochs, lr, momentum, config):
     """
     :param model: A pre-trained MoCo encoder Pytorch model. Typically, this is a variant of Resnet.
     :param train_loader: `torch.utils.data.DataLoader` instance that provides batches of training data for MoCo to
@@ -114,9 +114,12 @@ def fine_tune(model, train_loader, epochs, lr, momentum):
     :param epochs: The number of training epochs used during fine-tuning.
     :param lr: The initial learning rate used during fine-tuning.
     :param momentum: The momentum value used by the optimizer during fine-tuning.
+    :config: A dictionary specifying the parameters used during pre-training.
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
     wandb.watch(model)
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -183,12 +186,10 @@ if __name__ == '__main__':
                                                       ]),
                                                       labels=True,
                                                       debug=debug)
-
     validation_loader = DataLoader(imagenette_dataset_validation,
-                                   batch_size=config['pretraining_batch_size'],
+                                   batch_size=config[consts.BATCH_SIZE],
                                    shuffle=True)
-
     # Note: momentum is perceived as a tuple of floats with length 1. The momentum value is the sole entry in this
     # tuple.
-    fine_tuned_model = fine_tune(pre_trained_model, train_loader, epochs, lr, momentum[0])
+    fine_tuned_model = fine_tune(pre_trained_model, train_loader, epochs, lr, momentum[0], config)
 

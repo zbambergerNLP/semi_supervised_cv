@@ -17,7 +17,6 @@ import wandb
 import matplotlib.pyplot as plt
 
 
-
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
 parser.add_argument('--pre_training_debug',
@@ -194,7 +193,7 @@ def pre_train(encoder,
 
 def set_seed(seed=42):
     """
-    :param seed:
+    :param seed: The integer seed used for random number generation.
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -217,29 +216,26 @@ if __name__ == '__main__':
     t = args.temperature
     m = args.m
 
-    config_args = {'epochs':epochs,
-                  'lr': lr,
-                  'momentum':momentum,
-                  'bs':bs,
-                  'mul_for_num_of_keys':1,
-                  'encoder_output_dim': encoder_output_dim,
-                  't':t,
-                  'm':m}
+    config_args = {consts.EPOCHS: epochs,
+                   consts.LEARNING_RATE: lr,
+                   consts.MOMENTUM: momentum,
+                   consts.BATCH_SIZE: bs,
+                   consts.MUL_FOR_NUM_KEYS: 1,
+                   consts.ENCODER_OUTPUT_DIM: encoder_output_dim,
+                   consts.TEMPERATURE: t,
+                   consts.PARAM_TRANSFER_MOMENTUM: m,
+                   consts.SEED: seed}
 
-    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config = args)
-    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
     config = wandb.config
 
-    number_of_keys =config.mul_for_num_of_keys * config.bs
-    assert config.bs % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
-                                     f'Choose a different batch size so it will be a multiple of the number of keys.'
-
-
+    number_of_keys = config.mul_for_num_of_keys * config.batch_size
+    assert config.batch_size % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
+                                                    f'Choose a different batch size so it will be a multiple of the '\
+                                                    f'number of keys.'
     print(config)
-
-
     set_seed(seed)
-
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
                                            transform=transforms.Compose([
@@ -249,7 +245,7 @@ if __name__ == '__main__':
                                            ]),
                                            debug=debug)
 
-    train_loader = DataLoader(imagenette_dataset, batch_size=config.bs, shuffle=True)
+    train_loader = DataLoader(imagenette_dataset, batch_size=config.batch_size, shuffle=True)
 
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
@@ -267,12 +263,12 @@ if __name__ == '__main__':
                         m_endcoder,
                         train_loader,
                         epochs=config.epochs,
-                        lr=config.lr,
+                        lr=config.learning_rate,
                         momentum=config.momentum,
                         number_of_keys=number_of_keys,
-                        t= config.t,
-                        m= config.m,
-                        debug = debug)
+                        t=config.temperature,
+                        m=config.param_transfer_momentum,
+                        debug=debug)
     # Freeze the encoder
     encoder.requires_grad_(False)
 
@@ -283,7 +279,11 @@ if __name__ == '__main__':
 
     if not os.path.exists(consts.SAVED_ENCODERS_DIR):
         os.mkdir(consts.SAVED_ENCODERS_DIR)
-    main_name = "_".join([consts.RESNET_50, str(config.epochs), consts.EPOCHS, str(config.lr).replace(".", "_"), 'lr'])
+    main_name = "_".join([consts.RESNET_50,
+                          str(config.epochs),
+                          consts.EPOCHS,
+                          str(config.learning_rate).replace(".", "_"),
+                          consts.LEARNING_RATE])
     file_name = main_name + consts.MODEL_FILE_ENCODING
     torch.save(encoder.state_dict(), os.path.join(consts.SAVED_ENCODERS_DIR, file_name))
     config_path = os.path.join(consts.SAVED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
