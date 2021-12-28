@@ -121,7 +121,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
     wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
     # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
     wandb.watch(model)
-    loss_fn = nn.BCEWithLogitsLoss()
+    loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
     model = freeze_encoder_init_last_fc(model)
