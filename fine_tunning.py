@@ -25,7 +25,7 @@ parser.add_argument('--pretrained_encoder_file_name',
                     help="The filename of a saved encoder after MoCo pre-training.")
 parser.add_argument('--fine_tuning_debug',
                     type=bool,
-                    default=True,
+                    default=False,
                     required=False,
                     help="Whether or not to run fine-tuning in debug mode. In debug mode, the model learns over "
                          "a subset of the original dataset.")
@@ -120,8 +120,6 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
 
@@ -177,6 +175,8 @@ if __name__ == '__main__':
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
     pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR, filename=args.pretrained_encoder_file_name)
     set_seed(config[consts.SEED])
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
     normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                      std=[0.25, 0.25, 0.25])
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,

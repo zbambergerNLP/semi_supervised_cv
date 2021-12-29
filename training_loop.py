@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
 parser.add_argument('--pre_training_debug',
                     type=bool,
-                    default=True,
+                    default=False,
                     required=False,
                     help="Whether or not to run pre-training in debug mode. In debug mode, the model learns over "
                          "a subset of the original dataset.")
@@ -32,7 +32,7 @@ parser.add_argument('--seed',
                     help='The seed used for random sampling.')
 parser.add_argument('--pretraining_epochs',
                     type=int,
-                    default=3,
+                    default=200,
                     required=False,
                     help='The number of epochs used during pre-training.')
 parser.add_argument('--pretraining_learning_rate',
@@ -73,6 +73,7 @@ parser.add_argument('--m',
 
 # TODO: Document all functions and classes in this repository.
 
+
 # Train function
 def pre_train(encoder,
               m_encoder,
@@ -104,6 +105,7 @@ def pre_train(encoder,
 
     # The optimization is done only to the encoder weights and not to the momentum encoder
     optimizer = torch.optim.SGD(encoder.parameters(), lr=lr, momentum=momentum)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 160], gamma=0.1)
 
     for epoch in range(epochs):
         print(f'start epoch {epoch}')
@@ -167,6 +169,7 @@ def pre_train(encoder,
             # SGD update query network
             loss.backward()
             optimizer.step()  # Update only encoder parmas and not m_encoder params
+            scheduler.step()
 
             with torch.no_grad():  # no gradient to keys
                 # Momentum update key network
