@@ -229,8 +229,8 @@ if __name__ == '__main__':
                    consts.PARAM_TRANSFER_MOMENTUM: m,
                    consts.SEED: seed}
 
-    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
-    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
+    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
+    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
     config = wandb.config
 
     number_of_keys = config.mul_for_num_of_keys * config.batch_size

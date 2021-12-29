@@ -26,7 +26,9 @@ parameters:
       - 3
       - 4
   encoder_output_dim:
-
+      - 256
+      - 128
+      - 64
   temperature:
     min: 0.00001
     max: 1.0

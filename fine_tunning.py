@@ -75,6 +75,7 @@ def add_classification_layers(model, hidden_size, num_of_labels, debug=False):
     """
     model.fc1 = nn.Linear(hidden_size, num_of_labels)
     model.non_linear_func = nn.Softmax(dim=1)
+    model.fc1.requires_grad_(True)
     if debug:
         print(model)
     return model
@@ -120,8 +121,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
+    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
 
@@ -142,13 +143,14 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
         print(f'start epoch {epoch}')
         for minibatch, lables in train_loader:
             minibatch = minibatch.double()
-            optimizer.zero_grad()
+
 
             output = model(minibatch)  # Output shape is [batch_size,number_of_classes]
             loss_minibatch = loss_fn(output, lables.to(torch.int64))
             preds = torch.argmax(output, dim=1)
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
 
+            optimizer.zero_grad()
             loss_minibatch.backward()
             optimizer.step()
             print(f'preds = {preds}')
@@ -171,14 +173,14 @@ if __name__ == '__main__':
     print(args)
     debug = args.fine_tuning_debug
     epochs = 40 if debug else args.fine_tuning_epochs
-    lr = args.fine_tuning_learning_rate
+    lr = 10  if debug else args.fine_tuning_learning_rate
     momentum = args.fine_tuning_momentum,
     if not os.path.exists(consts.validation_filename):
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
     pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR, filename=args.pretrained_encoder_file_name)
-    set_seed(config[consts.SEED])
-    normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                     std=[0.25, 0.25, 0.25])
+    set_seed(1 if debug else config[consts.SEED])
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
                                            transform=transforms.Compose([
