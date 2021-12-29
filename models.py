@@ -15,7 +15,10 @@ class Encoder(nn.Module):
         self.final_num_of_features = end_num_of_features
         super(Encoder, self).__init__()
         self.resnet50 = nn.Sequential(*(list(resnet50.children())[:-1]))
-        self.fc1 = nn.Linear(consts.HIDDEN_REPRESENTATION_DIM, self.final_num_of_features)
+        #MOCO v2 changes
+        self.fc1 = nn.Sequential(nn.Linear(consts.HIDDEN_REPRESENTATION_DIM, consts.HIDDEN_REPRESENTATION_DIM),
+                                 nn.ReLU(),
+                                 nn.Linear(consts.HIDDEN_REPRESENTATION_DIM, self.final_num_of_features))
         self.non_linear_func = nn.ReLU()
 
     def forward(self, x):
