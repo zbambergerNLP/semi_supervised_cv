@@ -25,7 +25,7 @@ parser.add_argument('--pretrained_encoder_file_name',
                     help="The filename of a saved encoder after MoCo pre-training.")
 parser.add_argument('--fine_tuning_debug',
                     type=bool,
-                    default=True,
+                    default=False,
                     required=False,
                     help="Whether or not to run fine-tuning in debug mode. In debug mode, the model learns over "
                          "a subset of the original dataset.")
@@ -143,7 +143,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
         print(f'start epoch {epoch}')
         for minibatch, lables in train_loader:
             minibatch = minibatch.double()
-
+            optimizer.zero_grad()
 
             output = model(minibatch)  # Output shape is [batch_size,number_of_classes]
             loss_minibatch = loss_fn(output, lables.to(torch.int64))
