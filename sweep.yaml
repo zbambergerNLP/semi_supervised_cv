@@ -4,13 +4,13 @@ metric:
   name: epoch_acc
   goal: maximize
 parameters:
-  learning_rate:
+  pretraining_learning_rate:
     min: 0.0001
     max: 0.1
   momentum:
     min: 0.00001
     max: 1.0
-  batch_size:
+  pretraining_batch_size:
     values:
       - 8
       - 16

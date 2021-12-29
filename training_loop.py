@@ -48,12 +48,16 @@ parser.add_argument('--pretraining_batch_size',
                     default=64,
                     help='The mini-batch size used during pre-training with MoCo. Keys and queries are generated '
                          'from the entries of a mini-batch.')
-parser.add_argument('--number_of_keys',
+# parser.add_argument('--number_of_keys',
+#                     type=int,
+#                     default=8,
+#                     help='The number of keys used during MoCo\'s pre-training. As the number of keys increases, '
+#                          'the number of adversarial candidates during pre-training increases. Thus, as the number of'
+#                          'keys increases, so does the model\'s output space and problem difficulty.')
+parser.add_argument('--mul_for_num_of_keys',
                     type=int,
-                    default=8,
-                    help='The number of keys used during MoCo\'s pre-training. As the number of keys increases, '
-                         'the number of adversarial candidates during pre-training increases. Thus, as the number of'
-                         'keys increases, so does the model\'s output space and problem difficulty.')
+                    default=4,
+                    help="The number of keys is a multiple of batch size times this value.")
 parser.add_argument('--encoder_output_dim',
                     type=int,
                     default=128,
@@ -217,29 +221,29 @@ if __name__ == '__main__':
     lr = args.pretraining_learning_rate
     momentum = args.momentum
     bs = args.pretraining_batch_size
-    number_of_keys = args.number_of_keys
+    mul_for_num_of_keys = args.mul_for_num_of_keys
+    # number_of_keys = args.number_of_keys
     encoder_output_dim = args.encoder_output_dim
     t = args.temperature
     m = args.m
 
-    config_args = {consts.EPOCHS: epochs,
-                   consts.LEARNING_RATE: lr,
-                   consts.MOMENTUM: momentum,
-                   consts.BATCH_SIZE: bs,
-                   consts.MUL_FOR_NUM_KEYS: 1,
+    config_args = {'pretraining_epochs': epochs,
+                   'pretraining_learning_rate': lr,
+                   'momentum': momentum,
+                   'pretraining_batch_size': bs,
+                   consts.MUL_FOR_NUM_KEYS: mul_for_num_of_keys,
                    consts.ENCODER_OUTPUT_DIM: encoder_output_dim,
                    consts.TEMPERATURE: t,
-                   consts.PARAM_TRANSFER_MOMENTUM: m,
+                   'm': m,
                    consts.SEED: seed}
 
-    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
-    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config_args)
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config_args)
     config = wandb.config
 
-    number_of_keys = config.mul_for_num_of_keys * config.batch_size
-    assert config.batch_size % number_of_keys == 0, f'{bs} is not divisible by {number_of_keys}.\n' \
-                                                    f'Choose a different batch size so it will be a multiple of the '\
-                                                    f'number of keys.'
+    number_of_keys = config.mul_for_num_of_keys * config.pretraining_batch_size
+    assert number_of_keys % config.pretraining_batch_size == 0, f'{number_of_keys} is not divisible by '\
+                                                                f'{config.pretraining_batch_size}.\n'
     print(config)
     set_seed(seed)
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
@@ -251,7 +255,7 @@ if __name__ == '__main__':
                                            ]),
                                            debug=debug)
 
-    train_loader = DataLoader(imagenette_dataset, batch_size=config.batch_size, shuffle=True)
+    train_loader = DataLoader(imagenette_dataset, batch_size=config.pretraining_batch_size, shuffle=True)
 
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
@@ -268,12 +272,12 @@ if __name__ == '__main__':
     encoder = pre_train(encoder,
                         m_endcoder,
                         train_loader,
-                        epochs=config.epochs,
-                        lr=config.learning_rate,
+                        epochs=config.pretraining_epochs,
+                        lr=config.pretraining_learning_rate,
                         momentum=config.momentum,
                         number_of_keys=number_of_keys,
                         t=config.temperature,
-                        m=config.param_transfer_momentum,
+                        m=config.m,
                         debug=debug)
     # Freeze the encoder
     encoder.requires_grad_(False)
@@ -286,9 +290,9 @@ if __name__ == '__main__':
     if not os.path.exists(consts.SAVED_ENCODERS_DIR):
         os.mkdir(consts.SAVED_ENCODERS_DIR)
     main_name = "_".join([consts.RESNET_50,
-                          str(config.epochs),
+                          str(config.pretraining_epochs),
                           consts.EPOCHS,
-                          str(config.learning_rate).replace(".", "_"),
+                          str(config.pretraining_learning_rate).replace(".", "_"),
                           consts.LEARNING_RATE])
     file_name = main_name + consts.MODEL_FILE_ENCODING
     torch.save(encoder.state_dict(), os.path.join(consts.SAVED_ENCODERS_DIR, file_name))
