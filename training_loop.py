@@ -59,11 +59,11 @@ parser.add_argument('--encoder_output_dim',
                     default=128,
                     help='The encoder\'s output dim')
 parser.add_argument('--temperature',
-                    type=int,
+                    type=float,
                     default=0.07,
                     help='The temperature used in the Contrastive loss')
 parser.add_argument('--m',
-                    type=int,
+                    type=float,
                     default=0.999,
                     help='The momentume used to update the key\'s encoder parameters')
 
