@@ -67,6 +67,9 @@ parser.add_argument('--m',
                     default=0.999,
                     help='The momentume used to update the key\'s encoder parameters')
 
+# Sample run from server command line:
+# srun python3 training_loop.py --pre_training_debug False --seed 2 --pretraining_epochs 100 \
+# --pretraining_learning_rate 0.001 --number_of_keys 64 --pretraining_batch_size 256
 
 # TODO: Document all functions and classes in this repository.
 

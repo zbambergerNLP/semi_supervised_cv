@@ -3,6 +3,7 @@ import models
 import os
 import torch
 import json
+import torch.optim.lr_scheduler as lr_scheduler
 from training_loop import set_seed
 from data_loader import ImagenetteDataset, Rescale, RandomCrop, ToTensor
 from torch.utils.data import DataLoader
@@ -106,7 +107,7 @@ def load_model(dir, filename=None):
     return model, config
 
 
-def fine_tune(model, train_loader, epochs, lr, momentum, config):
+def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     """
     :param model: A pre-trained MoCo encoder Pytorch model. Typically, this is a variant of Resnet.
     :param train_loader: `torch.utils.data.DataLoader` instance that provides batches of training data for MoCo to
@@ -114,7 +115,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
     :param epochs: The number of training epochs used during fine-tuning.
     :param lr: The initial learning rate used during fine-tuning.
     :param momentum: The momentum value used by the optimizer during fine-tuning.
-    :config: A dictionary specifying the parameters used during pre-training.
+    :param config: A dictionary specifying the parameters used during pre-training.
+    :param gamma: A float that determines the extent of learning rate decay from the perspective of the optimizer.
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
@@ -126,6 +128,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
     # Filter out model parameters that don't require gradient updates.
     parameters = list(filter(lambda p: p.requires_grad, model.parameters()))
     optimizer = torch.optim.SGD(parameters, lr=lr, momentum=momentum)
+    scheduler = lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=gamma)
 
     model = freeze_encoder_init_last_fc(model)
     model = add_classification_layers(model,
@@ -148,13 +151,13 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config):
 
             loss_minibatch.backward()
             optimizer.step()
-
             print(f'preds = {preds}')
             print(f'lables = {lables}')
             acc.append(acc1)
             loss.append(loss_minibatch)
             print(f'epoch = {epoch} acc1 = {acc1} mini_batch_loss = {loss_minibatch}')
 
+        scheduler.step()
         avg_acc = sum(acc) / len(acc)
         avg_loss = sum(loss) / len(loss)
         wandb.log({'epoch loss': avg_loss,
