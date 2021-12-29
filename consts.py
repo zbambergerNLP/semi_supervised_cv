@@ -10,7 +10,7 @@ MODEL_FILE_ENCODING = '.pt'
 MODEL_CONFIGURATION_FILE_ENCODING = '.json'
 RESNET_50 = 'resent50'
 EPOCHS = 'epochs'
-CUDA = 'cude'
+CUDA = 'cuda'
 CPU = 'cpu'
 
 # Configs
