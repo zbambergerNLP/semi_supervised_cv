@@ -70,7 +70,7 @@ parser.add_argument('--temperature',
 parser.add_argument('--m',
                     type=float,
                     default=0.999,
-                    help='The momentume used to update the key\'s encoder parameters')
+                    help='The momentum used to update the key\'s encoder parameters')
 
 # Sample run from server command line:
 # srun python3 training_loop.py --pre_training_debug False --seed 2 --pretraining_epochs 100 \
@@ -167,6 +167,8 @@ def pre_train(encoder,
             epoch_loss.append(loss)
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
+            wandb.log({'mini-batch loss': loss,
+                       'mini-batch accuracy': accuracy})
             epoch_acc.append(accuracy)
             if batch_index % 5 == 0:
                 print(f'\tBatch Index = {batch_index},\tBatch Loss = {loss},\tBatch Accuracy = {accuracy}')
@@ -196,8 +198,8 @@ def pre_train(encoder,
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
         print(f'Epoch #:{epoch},\tEpoch Average Loss: {epoch_loss},\tEpoch Average Accuracy: {epoch_acc}')
-        wandb.log({"epoch loss": epoch_loss,
-                   "epoch accuracy": epoch_acc})
+        # wandb.log({"epoch loss": epoch_loss,
+        #            "epoch accuracy": epoch_acc})
     print('Finished pre-training!')
     return encoder
 
