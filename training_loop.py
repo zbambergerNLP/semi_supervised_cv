@@ -32,7 +32,7 @@ parser.add_argument('--seed',
                     help='The seed used for random sampling.')
 parser.add_argument('--pretraining_epochs',
                     type=int,
-                    default=200,
+                    default=3,
                     required=False,
                     help='The number of epochs used during pre-training.')
 parser.add_argument('--pretraining_learning_rate',
@@ -48,12 +48,6 @@ parser.add_argument('--pretraining_batch_size',
                     default=64,
                     help='The mini-batch size used during pre-training with MoCo. Keys and queries are generated '
                          'from the entries of a mini-batch.')
-# parser.add_argument('--number_of_keys',
-#                     type=int,
-#                     default=8,
-#                     help='The number of keys used during MoCo\'s pre-training. As the number of keys increases, '
-#                          'the number of adversarial candidates during pre-training increases. Thus, as the number of'
-#                          'keys increases, so does the model\'s output space and problem difficulty.')
 parser.add_argument('--mul_for_num_of_keys',
                     type=int,
                     default=4,
