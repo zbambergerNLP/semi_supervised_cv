@@ -8,9 +8,9 @@ random horizontal flip, and random grayscale conversion, all available in PyTorc
 import consts
 import torch
 import torchvision.transforms as transforms
-from fastai.vision.all import *
-from fastai.data.external import untar_data, URLs
-from fastai.data.transforms import get_image_files
+# from fastai.vision.all import *
+# from fastai.data.external import untar_data, URLs
+# from fastai.data.transforms import get_image_files
 
 
 def augment_images(augmentation_coin_tosses, images, color_jitter_transform, gaussian_blur_transform):
@@ -90,20 +90,20 @@ def augment(images,
     return augment_images(augmentation_coin_tosses, images, color_jitter_transform, gaussian_blur_transform)
 
 
-def load_imagenette():
-    """
-    Return dataloaders for the imagenette dataset.
-    """
-    path = untar_data(URLs.IMAGENETTE_160)
-    dblock = DataBlock(
-        blocks=(ImageBlock, CategoryBlock),
-        get_items=get_image_files,
-        get_y=label_func,
-        splitter=GrandparentSplitter(),
-        item_tfms=RandomResizedCrop(224, min_scale=0.35),
-        batch_tfms=Normalize.from_stats(*imagenet_stats),
-    )
-    return dblock.dataloaders(path)
+# def load_imagenette():
+#     """
+#     Return dataloaders for the imagenette dataset.
+#     """
+#     path = untar_data(URLs.IMAGENETTE_160)
+#     dblock = DataBlock(
+#         blocks=(ImageBlock, CategoryBlock),
+#         get_items=get_image_files,
+#         get_y=label_func,
+#         splitter=GrandparentSplitter(),
+#         item_tfms=RandomResizedCrop(224, min_scale=0.35),
+#         batch_tfms=Normalize.from_stats(*imagenet_stats),
+#     )
+#     return dblock.dataloaders(path)
 
 
 def label_func(fname):

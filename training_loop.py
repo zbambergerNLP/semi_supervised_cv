@@ -16,7 +16,8 @@ import argparse
 import wandb
 import matplotlib.pyplot as plt
 
-
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
 parser.add_argument('--pre_training_debug',
@@ -233,8 +234,8 @@ if __name__ == '__main__':
                    'm': m,
                    consts.SEED: seed}
 
-    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
-    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config_args)
+    #wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
+    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config_args)
     config = wandb.config
 
     number_of_keys = config.mul_for_num_of_keys * config.pretraining_batch_size
@@ -247,7 +248,8 @@ if __name__ == '__main__':
                                            transform=transforms.Compose([
                                                Rescale(256),
                                                RandomCrop(224),
-                                               ToTensor()
+                                               ToTensor(),
+                                               normalize
                                            ]),
                                            debug=debug)
 

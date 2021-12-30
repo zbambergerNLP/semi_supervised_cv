@@ -4,7 +4,7 @@ import os
 import torch
 import json
 import torch.optim.lr_scheduler as lr_scheduler
-from training_loop import set_seed
+from training_loop import set_seed, normalize
 from data_loader import ImagenetteDataset, Rescale, RandomCrop, ToTensor
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -179,8 +179,7 @@ if __name__ == '__main__':
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
     pre_trained_model, config = load_model(dir=consts.SAVED_ENCODERS_DIR, filename=args.pretrained_encoder_file_name)
     set_seed(1 if debug else config[consts.SEED])
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
                                            transform=transforms.Compose([
