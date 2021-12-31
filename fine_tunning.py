@@ -31,7 +31,7 @@ parser.add_argument('--fine_tuning_debug',
                          "a subset of the original dataset.")
 parser.add_argument('--fine_tuning_epochs',
                     type=int,
-                    default=100,
+                    default=10,
                     required=False,
                     help='The number of epochs used during fine-tuning.')
 parser.add_argument('--fine_tuning_learning_rate',
@@ -57,9 +57,7 @@ def freeze_encoder_init_last_fc(encoder):
     for name, param in encoder.named_parameters():
         if name not in ['fc1.weight', 'fc1.bias']:
             param.requires_grad = False
-    # init the fc layer
-    encoder.fc1.weight.data.normal_(mean=0.0, std=0.01)
-    encoder.fc1.bias.data.zero_()
+
     return encoder
 
 
@@ -75,6 +73,9 @@ def add_classification_layers(model, hidden_size, num_of_labels, debug=False):
     """
     model.fc1 = nn.Linear(hidden_size, num_of_labels)
     model.non_linear_func = nn.Softmax(dim=1)
+    # init the fc layer
+    model.fc1.weight.data.normal_(mean=0.0, std=0.01)
+    model.fc1.bias.data.zero_()
     model.fc1.requires_grad_(True)
     if debug:
         print(model)
@@ -202,7 +203,7 @@ if __name__ == '__main__':
                                                       labels=True,
                                                       debug=debug)
     validation_loader = DataLoader(imagenette_dataset_validation,
-                                   batch_size=config[consts.BATCH_SIZE],
+                                   batch_size=args.fine_tuning_batch_size,
                                    shuffle=True)
     # Note: momentum is perceived as a tuple of floats with length 1. The momentum value is the sole entry in this
     # tuple.

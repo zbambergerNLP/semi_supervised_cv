@@ -8,9 +8,9 @@ random horizontal flip, and random grayscale conversion, all available in PyTorc
 import consts
 import torch
 import torchvision.transforms as transforms
-# from fastai.vision.all import *
-# from fastai.data.external import untar_data, URLs
-# from fastai.data.transforms import get_image_files
+from fastai.vision.all import *
+from fastai.data.external import untar_data, URLs
+from fastai.data.transforms import get_image_files
 
 
 def augment_images(augmentation_coin_tosses, images, color_jitter_transform, gaussian_blur_transform):
