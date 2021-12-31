@@ -33,7 +33,7 @@ parser.add_argument('--seed',
                     help='The seed used for random sampling.')
 parser.add_argument('--pretraining_epochs',
                     type=int,
-                    default=3,
+                    default=2,
                     required=False,
                     help='The number of epochs used during pre-training.')
 parser.add_argument('--pretraining_learning_rate',
@@ -51,11 +51,11 @@ parser.add_argument('--pretraining_batch_size',
                          'from the entries of a mini-batch.')
 parser.add_argument('--mul_for_num_of_keys',
                     type=int,
-                    default=4,
+                    default=2,
                     help="The number of keys is a multiple of batch size times this value.")
 parser.add_argument('--encoder_output_dim',
                     type=int,
-                    default=128,
+                    default=64,
                     help='The encoder\'s output dim')
 parser.add_argument('--temperature',
                     type=float,
@@ -192,8 +192,8 @@ def pre_train(encoder,
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
         print(f'Epoch #:{epoch},\tEpoch Average Loss: {epoch_loss},\tEpoch Average Accuracy: {epoch_acc}')
-        # wandb.log({"epoch loss": epoch_loss,
-        #            "epoch accuracy": epoch_acc})
+        wandb.log({"epoch loss": epoch_loss,
+                   "epoch accuracy": epoch_acc})
     print('Finished pre-training!')
     return encoder
 
@@ -234,8 +234,8 @@ if __name__ == '__main__':
                    'm': m,
                    consts.SEED: seed}
 
-    #wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
-    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config_args)
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config_args)
     config = wandb.config
 
     number_of_keys = config.mul_for_num_of_keys * config.pretraining_batch_size
@@ -297,3 +297,4 @@ if __name__ == '__main__':
     config_path = os.path.join(consts.SAVED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
     with open(config_path, 'w') as fp:
         json.dump(config_dict, fp, indent=4)
+    print(f'Saved pre-trained model to {config_path}')
