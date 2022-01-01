@@ -53,11 +53,10 @@ def freeze_encoder_init_last_fc(encoder):
     :param encoder: A pre-trained MoCo encoder Pytorch model. Typically, this is a variant of Resnet.
     :return: A frozen version of the inputted encoder model, and with the final fully connected layer reset.
     """
-    # freeze all layers but the last fc
+    # Freeze all layers but the last FC layers
     for name, param in encoder.named_parameters():
-        if name not in ['fc1.weight', 'fc1.bias']:
+        if name not in ['fc1.0.weight', 'fc1.0.bias', 'fc1.2.weight', 'fc1.2.bias']:
             param.requires_grad = False
-
     return encoder
 
 
@@ -94,18 +93,19 @@ def load_model(dir, filename=None):
     if filename is None:  # If filename is none get the latest file
         file_type = '/*pt'
         files = glob.glob(dir + file_type)
-        filename = max(files, key=os.path.getctime)
+        model_path = max(files, key=os.path.getctime)
         json_type = '/*json'
         json_files = glob.glob(dir + json_type)
-        json_filename = max(json_files, key=os.path.getctime)
+        json_path = max(json_files, key=os.path.getctime)
     else:
-        json_filename = filename + consts.MODEL_CONFIGURATION_FILE_ENCODING
+        json_path = os.path.join(dir, filename + consts.MODEL_CONFIGURATION_FILE_ENCODING)
+        model_path = os.path.join(dir, filename + consts.MODEL_FILE_ENCODING)
 
-    with open(json_filename, "r") as fp:
+    with open(json_path, "r") as fp:
         config = json.load(fp)
 
     model = models.Encoder(config[consts.ENCODER_OUTPUT_DIM]).double()
-    model.load_state_dict(torch.load(filename))
+    model.load_state_dict(torch.load(model_path))
     return model, config
 
 
@@ -122,20 +122,21 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config = config)
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
+
+    model = freeze_encoder_init_last_fc(model)
+    model = add_classification_layers(model,
+                                      hidden_size=consts.HIDDEN_REPRESENTATION_DIM,
+                                      num_of_labels=consts.NUM_OF_CLASSES)
 
     # Filter out model parameters that don't require gradient updates.
     parameters = list(filter(lambda p: p.requires_grad, model.parameters()))
     optimizer = torch.optim.SGD(parameters, lr=lr, momentum=momentum)
     scheduler = lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=gamma)
 
-    model = freeze_encoder_init_last_fc(model)
-    model = add_classification_layers(model,
-                                      hidden_size=consts.HIDDEN_REPRESENTATION_DIM,
-                                      num_of_labels=consts.NUM_OF_CLASSES)
     model = model.double()
     acc = []
     loss = []
@@ -148,24 +149,26 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
 
             output = model(minibatch)  # Output shape is [batch_size,number_of_classes]
             loss_minibatch = loss_fn(output, lables.to(torch.int64))
+            loss.append(loss_minibatch)
             preds = torch.argmax(output, dim=1)
-            acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
-
             optimizer.zero_grad()
             loss_minibatch.backward()
             optimizer.step()
-            print(f'preds = {preds}')
-            print(f'lables = {lables}')
+            acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
             acc.append(acc1)
-            loss.append(loss_minibatch)
-            print(f'epoch = {epoch} acc1 = {acc1} mini_batch_loss = {loss_minibatch}')
+            
+            print(f'\t{consts.MINI_BATCH_INDEX} = {epoch}\t'
+                  f'{consts.MINI_BATCH_LOSS} = {loss_minibatch}'
+                  f' {consts.MINI_BATCH_ACCURACY} = {acc1}')
 
         scheduler.step()
         avg_acc = sum(acc) / len(acc)
         avg_loss = sum(loss) / len(loss)
-        wandb.log({'epoch loss': avg_loss,
-                   'epoch accuracy': avg_acc})
-        print(f'epoch = {epoch} avg_acc = {avg_acc} avg_loss = {avg_loss}')
+        wandb.log({consts.EPOCH_LOSS: avg_loss,
+                   consts.EPOCH_ACCURACY: avg_acc})
+        print(f'{consts.EPOCH_INDEX} = {epoch}\t'
+              f'{consts.EPOCH_LOSS} = {avg_loss}\t'
+              f'{consts.EPOCH_ACCURACY} = {avg_acc}')
     return model
 
 

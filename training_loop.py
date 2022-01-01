@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
 parser.add_argument('--pre_training_debug',
                     type=bool,
-                    default=False,
+                    default=True,
                     required=False,
                     help="Whether or not to run pre-training in debug mode. In debug mode, the model learns over "
                          "a subset of the original dataset.")
@@ -283,11 +283,13 @@ if __name__ == '__main__':
 
     if not os.path.exists(consts.SAVED_ENCODERS_DIR):
         os.mkdir(consts.SAVED_ENCODERS_DIR)
-    main_name = "_".join([consts.RESNET_50,
+    main_name = "_".join(["debug",
+                          str(debug),
+                          consts.RESNET_50,
                           str(config[consts.PRETRAINING_EPOCHS]),
                           consts.EPOCHS,
                           str(config[consts.PRETRAINING_LEARNING_RATE]).replace(".", "_"),
-                          consts.LEARNING_RATE,
+                          consts.PRETRAINING_LEARNING_RATE,
                           str(config[consts.PRETRAINING_BATCH_SIZE]),
                           consts.PRETRAINING_BATCH_SIZE,
                           str(config[consts.PRETRAINING_M]),
