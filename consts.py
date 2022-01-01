@@ -15,9 +15,11 @@ CPU = 'cpu'
 
 # Configs
 SEED = 'seed'
-LEARNING_RATE = 'learning_rate'
-MOMENTUM = 'momentum'
-BATCH_SIZE = 'batch_size'
+PRETRAINING_LEARNING_RATE = 'pretraining_learning_rate'
+PRETRAINING_EPOCHS = "pretraining_epochs"
+PRETRAINING_MOMENTUM = 'pretraining_momentum'
+PRETRAINING_BATCH_SIZE = 'pretraining_batch_size'
+PRETRAINING_M = "m"
 MUL_FOR_NUM_KEYS = 'mul_for_num_of_keys'
 ENCODER_OUTPUT_DIM = 'encoder_output_dim'
 TEMPERATURE = "temperature"
@@ -36,3 +38,11 @@ IMAGENETTE_LABEL_DICT = dict(
     n03445777='golf ball',
     n03888257='parachute',
 )
+
+# METRICS
+MINI_BATCH_INDEX = "mini_batch_index"
+EPOCH_INDEX = "epoch_index"
+MINI_BATCH_LOSS = "mini_batch_loss"
+MINI_BATCH_ACCURACY = "mini_batch_accuracy"
+EPOCH_LOSS = "epoch_loss"
+EPOCH_ACCURACY = "epoch_accuracy"

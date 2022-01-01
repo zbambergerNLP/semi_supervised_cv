@@ -14,7 +14,6 @@ from torchvision import transforms
 from augment import augment
 import argparse
 import wandb
-import matplotlib.pyplot as plt
 
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
@@ -40,7 +39,7 @@ parser.add_argument('--pretraining_learning_rate',
                     type=float,
                     default=1e-2,
                     help='The initial learning rate used during pre-training.')
-parser.add_argument('--momentum',
+parser.add_argument('--pretraining_momentum',
                     type=float,
                     default=0.9,
                     help='The momentum value used to transfer weights between encoders during pre-training.')
@@ -79,7 +78,7 @@ def pre_train(encoder,
               train_loader,
               epochs=3,
               lr=0.001,
-              momentum=0.9,
+              pretraining_momentum=0.9,
               t=0.07,
               m=0.999,
               number_of_keys=3,
@@ -89,7 +88,7 @@ def pre_train(encoder,
     :param m_encoder:
     :param epochs:
     :param lr:
-    :param momentum:
+    :param pretraining_momentum:
     :param t:
     :param m:
     :param number_of_keys:
@@ -103,7 +102,7 @@ def pre_train(encoder,
     loss_fn = nn.BCEWithLogitsLoss()
 
     # The optimization is done only to the encoder weights and not to the momentum encoder
-    optimizer = torch.optim.SGD(encoder.parameters(), lr=lr, momentum=momentum)
+    optimizer = torch.optim.SGD(encoder.parameters(), lr=lr, momentum=pretraining_momentum)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 160], gamma=0.1)
 
     for epoch in range(epochs):
@@ -127,15 +126,6 @@ def pre_train(encoder,
                           grayscale_conversion_prob=0.2,
                           gaussian_blur_prob=0.5)
 
-            if debug:
-                if batch_index % 5 == 0:
-                    # plt.figure()
-                    # f, ax = plt.subplots(2, 1)
-                    # ax[0].imshow(x_q[0].T)
-                    # ax[1].imshow(x_k[0].T)
-                    # plt.show()
-                    pass
-
             q = encoder.forward(x_q)  # Queries have shape [N, C] where C = 2048 * 1 * 128
 
             with torch.no_grad():
@@ -153,7 +143,7 @@ def pre_train(encoder,
             queue_view.detach()
             q = torch.squeeze(q, dim=1)
 
-            l_neg = q @ queue_view.double() # Negative logits are a tensor of shape [N, K]
+            l_neg = q @ queue_view.double()  # Negative logits are a tensor of shape [N, K]
             logits = torch.concat((l_pos, l_neg), dim=1)  # Lots have shape [N, K + 1]
             labels = torch.zeros(l_pos.shape[0])
             one_hot_labels = torch.nn.functional.one_hot(labels.to(torch.int64), num_classes=logits.shape[1])
@@ -161,11 +151,13 @@ def pre_train(encoder,
             epoch_loss.append(loss)
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
-            wandb.log({'mini-batch loss': loss,
-                       'mini-batch accuracy': accuracy})
+            wandb.log({consts.MINI_BATCH_LOSS: loss,
+                       consts.MINI_BATCH_ACCURACY: accuracy})
             epoch_acc.append(accuracy)
             if batch_index % 5 == 0:
-                print(f'\tBatch Index = {batch_index},\tBatch Loss = {loss},\tBatch Accuracy = {accuracy}')
+                print(f'\t{consts.MINI_BATCH_INDEX} = {batch_index},\t'
+                      f'{consts.MINI_BATCH_LOSS} = {loss},'
+                      f'\t{consts.MINI_BATCH_ACCURACY} = {accuracy}')
 
             # SGD update query network
             loss.backward()
@@ -191,9 +183,11 @@ def pre_train(encoder,
             batch_index += 1
         epoch_loss = sum(epoch_loss) / len(epoch_loss)
         epoch_acc = sum(epoch_acc) / len(epoch_acc)
-        print(f'Epoch #:{epoch},\tEpoch Average Loss: {epoch_loss},\tEpoch Average Accuracy: {epoch_acc}')
-        wandb.log({"epoch loss": epoch_loss,
-                   "epoch accuracy": epoch_acc})
+        print(f'{consts.EPOCH_INDEX} #:{epoch},\t'
+              f'{consts.EPOCH_LOSS}: {epoch_loss},\t'
+              f'{consts.EPOCH_ACCURACY}: {epoch_acc}')
+        wandb.log({consts.EPOCH_LOSS: epoch_loss,
+                   consts.EPOCH_ACCURACY: epoch_acc})
     print('Finished pre-training!')
     return encoder
 
@@ -216,7 +210,7 @@ if __name__ == '__main__':
     seed = args.seed
     epochs = args.pretraining_epochs
     lr = args.pretraining_learning_rate
-    momentum = args.momentum
+    momentum = args.pretraining_momentum
     bs = args.pretraining_batch_size
     mul_for_num_of_keys = args.mul_for_num_of_keys
     # number_of_keys = args.number_of_keys
@@ -224,23 +218,25 @@ if __name__ == '__main__':
     t = args.temperature
     m = args.m
 
-    config_args = {'pretraining_epochs': epochs,
-                   'pretraining_learning_rate': lr,
-                   'momentum': momentum,
-                   'pretraining_batch_size': bs,
+    config_args = {consts.PRETRAINING_EPOCHS: epochs,
+                   consts.PRETRAINING_LEARNING_RATE: lr,
+                   consts.PRETRAINING_MOMENTUM: momentum,
+                   consts.PRETRAINING_BATCH_SIZE: bs,
                    consts.MUL_FOR_NUM_KEYS: mul_for_num_of_keys,
                    consts.ENCODER_OUTPUT_DIM: encoder_output_dim,
                    consts.TEMPERATURE: t,
-                   'm': m,
+                   consts.PRETRAINING_M: m,
                    consts.SEED: seed}
+
+    print(f'config_args: {config_args}')
 
     wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config_args)
     # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config_args)
     config = wandb.config
 
-    number_of_keys = config.mul_for_num_of_keys * config.pretraining_batch_size
-    assert number_of_keys % config.pretraining_batch_size == 0, f'{number_of_keys} is not divisible by '\
-                                                                f'{config.pretraining_batch_size}.\n'
+    number_of_keys = config[consts.MUL_FOR_NUM_KEYS] * config[consts.PRETRAINING_BATCH_SIZE]
+    assert number_of_keys % config[consts.PRETRAINING_BATCH_SIZE] == 0,\
+        f'{number_of_keys} is not divisible by {config[consts.PRETRAINING_BATCH_SIZE]}.\n'
     print(config)
     set_seed(seed)
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
@@ -252,9 +248,9 @@ if __name__ == '__main__':
                                                normalize
                                            ]),
                                            debug=debug)
-
-    train_loader = DataLoader(imagenette_dataset, batch_size=config.pretraining_batch_size, shuffle=True)
-
+    train_loader = DataLoader(imagenette_dataset,
+                              batch_size=config[consts.PRETRAINING_BATCH_SIZE],
+                              shuffle=True)
     encoder = models.Encoder(encoder_output_dim).double()
     m_endcoder = models.Encoder(encoder_output_dim).double()
 
@@ -263,19 +259,19 @@ if __name__ == '__main__':
     encoder.to(device)
     m_endcoder.to(device)
 
-    # initialize  parameters in both encoders to be the same
+    # Initialize  parameters in both encoders to be the same
     for param, m_param in zip(encoder.parameters(), m_endcoder.parameters()):
         m_param.data.copy_(param.data)
 
     encoder = pre_train(encoder,
                         m_endcoder,
                         train_loader,
-                        epochs=config.pretraining_epochs,
-                        lr=config.pretraining_learning_rate,
-                        momentum=config.momentum,
+                        epochs=config[consts.PRETRAINING_EPOCHS],
+                        lr=config[consts.PRETRAINING_LEARNING_RATE],
+                        pretraining_momentum=config[consts.PRETRAINING_MOMENTUM],
                         number_of_keys=number_of_keys,
-                        t=config.temperature,
-                        m=config.m,
+                        t=config[consts.TEMPERATURE],
+                        m=config[consts.PRETRAINING_M],
                         debug=debug)
     # Freeze the encoder
     encoder.requires_grad_(False)
@@ -288,10 +284,14 @@ if __name__ == '__main__':
     if not os.path.exists(consts.SAVED_ENCODERS_DIR):
         os.mkdir(consts.SAVED_ENCODERS_DIR)
     main_name = "_".join([consts.RESNET_50,
-                          str(config.pretraining_epochs),
+                          str(config[consts.PRETRAINING_EPOCHS]),
                           consts.EPOCHS,
-                          str(config.pretraining_learning_rate).replace(".", "_"),
-                          consts.LEARNING_RATE])
+                          str(config[consts.PRETRAINING_LEARNING_RATE]).replace(".", "_"),
+                          consts.LEARNING_RATE,
+                          str(config[consts.PRETRAINING_BATCH_SIZE]),
+                          consts.PRETRAINING_BATCH_SIZE,
+                          str(config[consts.PRETRAINING_M]),
+                          consts.PRETRAINING_M])
     file_name = main_name + consts.MODEL_FILE_ENCODING
     torch.save(encoder.state_dict(), os.path.join(consts.SAVED_ENCODERS_DIR, file_name))
     config_path = os.path.join(consts.SAVED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
