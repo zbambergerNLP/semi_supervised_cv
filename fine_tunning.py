@@ -31,7 +31,7 @@ parser.add_argument('--fine_tuning_debug',
                          "a subset of the original dataset.")
 parser.add_argument('--fine_tuning_epochs',
                     type=int,
-                    default=10,
+                    default=2,
                     required=False,
                     help='The number of epochs used during fine-tuning.')
 parser.add_argument('--fine_tuning_learning_rate',
@@ -122,8 +122,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config)
+    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
 
@@ -156,7 +156,7 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
             optimizer.step()
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
             acc.append(acc1)
-            
+
             print(f'\t{consts.MINI_BATCH_INDEX} = {epoch}\t'
                   f'{consts.MINI_BATCH_LOSS} = {loss_minibatch}'
                   f' {consts.MINI_BATCH_ACCURACY} = {acc1}')
@@ -171,12 +171,28 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
               f'{consts.EPOCH_ACCURACY} = {avg_acc}')
     return model
 
+def evaluate(fine_tuned_model, validation_loader):
+    acc = []
+    for minibatch, lables in validation_loader:
+        minibatch = minibatch.double()
+        with torch.no_grad():
+            output = fine_tuned_model(minibatch)  # Output shape is [batch_size,number_of_classes]
+
+        preds = torch.argmax(output, dim=1)
+        acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
+        acc.append(acc1)
+
+        print(f' {consts.MINI_BATCH_ACCURACY} = {acc1}')
+
+    avg_acc = sum(acc) / len(acc)
+    print(f'validation avg_Acc = {avg_acc}')
+    return avg_acc
 
 if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     debug = args.fine_tuning_debug
-    epochs = 40 if debug else args.fine_tuning_epochs
+    epochs = 5 if debug else args.fine_tuning_epochs
     lr = 10  if debug else args.fine_tuning_learning_rate
     momentum = args.fine_tuning_momentum,
     if not os.path.exists(consts.validation_filename):
@@ -212,3 +228,27 @@ if __name__ == '__main__':
     # tuple.
     fine_tuned_model = fine_tune(pre_trained_model, train_loader, epochs, lr, momentum[0], config)
 
+    avg_acc_val = evaluate(fine_tuned_model,validation_loader)
+
+    if avg_acc_val >0.8:
+        if not os.path.exists(consts.SAVED_FINE_TUNED_ENCODERS_DIR):
+            os.mkdir(consts.SAVED_FINE_TUNED_ENCODERS_DIR)
+        main_name = "_".join(["fine_tuned",
+                              "debug",
+                              str(debug),
+                              consts.RESNET_50,
+                              str(config[consts.PRETRAINING_EPOCHS]),
+                              consts.EPOCHS,
+                              str(config[consts.PRETRAINING_LEARNING_RATE]).replace(".", "_"),
+                              consts.PRETRAINING_LEARNING_RATE,
+                              str(config[consts.PRETRAINING_BATCH_SIZE]),
+                              consts.PRETRAINING_BATCH_SIZE,
+                              str(config[consts.PRETRAINING_M]),
+                              consts.PRETRAINING_M,
+                              'avg_acc_val',
+                              str(avg_acc_val)])
+
+        file_name = main_name + consts.MODEL_FILE_ENCODING
+        torch.save(fine_tuned_model.state_dict(), os.path.join(consts.SAVED_FINE_TUNED_ENCODERS_DIR, file_name))
+        config_path = os.path.join(consts.SAVED_FINE_TUNED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
+        print(f'Saved pre-trained model to {config_path}')
