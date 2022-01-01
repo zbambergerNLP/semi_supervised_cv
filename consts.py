@@ -16,9 +16,13 @@ CPU = 'cpu'
 # Configs
 SEED = 'seed'
 PRETRAINING_LEARNING_RATE = 'pretraining_learning_rate'
+FINE_TUNING_LEARNING_RATE = 'fine_tuning_learning_rate'
 PRETRAINING_EPOCHS = "pretraining_epochs"
+FINE_TUNING_EPOCHS = 'fine_tuning_epochs'
 PRETRAINING_MOMENTUM = 'pretraining_momentum'
+FINE_TUNING_MOMENTUM = 'fine_tuning_momentum'
 PRETRAINING_BATCH_SIZE = 'pretraining_batch_size'
+FINE_TUNING_BATCH_SIZE = 'fine_tuning_batch_size'
 PRETRAINING_M = "m"
 MUL_FOR_NUM_KEYS = 'mul_for_num_of_keys'
 ENCODER_OUTPUT_DIM = 'encoder_output_dim'

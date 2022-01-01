@@ -1,4 +1,4 @@
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import os
 import torch
 import numpy as np
@@ -9,6 +9,11 @@ from augment import label_func
 
 
 def create_csv_file(dir, filename):
+    """
+    :param dir: The directory in which the csv file corresponding to the dataset. Each entry in the CSV corresponds to
+        the path of a file from the dataset.
+    :param filename: The name of the CSV file we are creating.
+    """
     # Open the file in the write mode
     with open(filename, 'w') as fileHandle:
         for d in os.listdir(dir):
@@ -23,19 +28,22 @@ def create_csv_file(dir, filename):
 
 
 class Rescale(object):
-    """Rescale the image in a sample to a given size.
-
-    Args:
-        output_size (tuple or int): Desired output size. If tuple, output is
-            matched to output_size. If int, smaller of image edges is matched
-            to output_size keeping aspect ratio the same.
-    """
+    """Rescale the image in a sample to a given size"""
 
     def __init__(self, output_size):
+        """
+        :param output_size: (tuple or int) Desired output size. If tuple, output is matched to output_size. If int,
+            smaller of image edges is matched to output_size keeping aspect ratio the same.
+        """
         assert isinstance(output_size, (int, tuple))
         self.output_size = output_size
 
     def __call__(self, sample):
+        """Perform a Rescale operation on an image, converting it to the desired height and width.
+
+        :param sample: A sample image tensor of shape [height, width, ...] on which to perform Rescaling.
+        :return: A rescaled image tensor with the desired height and width (specified by `self.output_size`).
+        """
         image = sample
 
         h, w = image.shape[:2]
@@ -55,14 +63,12 @@ class Rescale(object):
 
 
 class RandomCrop(object):
-    """Crop randomly the image in a sample.
-
-    Args:
-        output_size (tuple or int): Desired output size. If int, square crop
-            is made.
-    """
+    """Crop randomly the image in a sample."""
 
     def __init__(self, output_size):
+        """
+        :param output_size: (tuple or int) Desired output size. If int, square crop is made.
+        """
         assert isinstance(output_size, (int, tuple))
         if isinstance(output_size, int):
             self.output_size = (output_size, output_size)
@@ -71,6 +77,11 @@ class RandomCrop(object):
             self.output_size = output_size
 
     def __call__(self, sample):
+        """
+        :param sample: A sample image tensor of shape [height, width, ...] on which to perform Rescaling.
+        :return: A crop image tensor that is taken from the original image tensor. The height and width of the produced
+            crop are specified by `self.output_size`.
+        """
         image = sample
 
         h, w = image.shape[:2]
@@ -89,6 +100,11 @@ class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
     def __call__(self, sample):
+        """
+        :param sample: An image that is either grayscale or RGB.
+        :return: A torch tensor version of the original image such that its dimensions are [C, H, W]. C contains the RGB
+            channel values, while H and W represent height and width respectively.
+        """
         image = sample
 
         # swap color axis because
@@ -96,7 +112,7 @@ class ToTensor(object):
         # torch image: C x H x W
         if len(image.shape) == 2:
             image = np.expand_dims(image, axis=2)
-            image = np.repeat(image,3,axis=2)
+            image = np.repeat(image, 3, axis=2)
 
         image = image.transpose((2, 0, 1))
         return torch.from_numpy(image)
@@ -110,9 +126,10 @@ class ImagenetteDataset(Dataset):
         :param root_dir: The string directory with all the images.
         :param csv_file: String path to the csv file with paths to all the images.
         :param transform: (callable, optional) transform to be applied on a sample.
-        :param labels:
-        :param debug:
-        :return:
+        :param labels: True if the dataset should contain integer labels to represent the type of content of the image.
+            False if the dataset should consist strictly of the images, without their labels.
+        :param debug: True if we are training in an easy-debug mode where training and evaluation must run quickly.
+            False otherwise.
         """
         self.root_dir = root_dir
         self.csv_file = csv_file

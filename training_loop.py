@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
 parser.add_argument('--pre_training_debug',
                     type=bool,
-                    default=True,
+                    default=False,
                     required=False,
                     help="Whether or not to run pre-training in debug mode. In debug mode, the model learns over "
                          "a subset of the original dataset.")
@@ -69,8 +69,6 @@ parser.add_argument('--m',
 # srun python3 training_loop.py --pre_training_debug False --seed 2 --pretraining_epochs 100 \
 # --pretraining_learning_rate 0.001 --number_of_keys 64 --pretraining_batch_size 256
 
-# TODO: Document all functions and classes in this repository.
-
 
 # Train function
 def pre_train(encoder,
@@ -81,18 +79,21 @@ def pre_train(encoder,
               pretraining_momentum=0.9,
               t=0.07,
               m=0.999,
-              number_of_keys=3,
-              debug=False):
+              number_of_keys=3):
     """
-    :param encoder:
-    :param m_encoder:
-    :param epochs:
-    :param lr:
-    :param pretraining_momentum:
-    :param t:
-    :param m:
-    :param number_of_keys:
-    :return:
+    :param encoder: An instance of `models.Encoder` representing the MoCo encoder. This model is composed of a base
+     layer such as ResNet, followed by one or two fully connected layers.
+    :param m_encoder: A copy of the encoder model utilized as part of MoCo pre-training.
+    :param epochs: The number of iterations over the entire dataset during pre-training.
+    :param lr: The learning rate of the primary encoder model.
+    :param pretraining_momentum: The momentum for the optimizer used while training MoCo's encoder during pre-training.
+    :param t: The pre-training temperature used as part of contrastive loss in MoCo's pre-training.
+    :param m: The momentum for weight transfer from the `encoder` to the `m_encoder`. The lower `m`, the higher the
+        weight transfer from `encoder` to `m_encoder`.
+    :param number_of_keys: The number of keys used as part of the contrastive loss objective during pre-training. The
+        higher the number of keys, the more images the encoder must distinguish between when matching a query to its
+        corresponding key.
+    :return: A fully pre-trained MoCo encoder.
     """
     wandb.watch(encoder)
     queue_dict = []  # Will add in FIFO order keys of mini batches
@@ -213,7 +214,6 @@ if __name__ == '__main__':
     momentum = args.pretraining_momentum
     bs = args.pretraining_batch_size
     mul_for_num_of_keys = args.mul_for_num_of_keys
-    # number_of_keys = args.number_of_keys
     encoder_output_dim = args.encoder_output_dim
     t = args.temperature
     m = args.m
@@ -292,7 +292,7 @@ if __name__ == '__main__':
                           consts.PRETRAINING_LEARNING_RATE,
                           str(config[consts.PRETRAINING_BATCH_SIZE]),
                           consts.PRETRAINING_BATCH_SIZE,
-                          str(config[consts.PRETRAINING_M]),
+                          str(config[consts.PRETRAINING_M]).replace(".", "_"),
                           consts.PRETRAINING_M])
     file_name = main_name + consts.MODEL_FILE_ENCODING
     torch.save(encoder.state_dict(), os.path.join(consts.SAVED_ENCODERS_DIR, file_name))

@@ -14,7 +14,6 @@ import consts
 import argparse
 import wandb
 
-# TODO: Evaluate the fine-tuned model on Imagenette verification set. Top-1 accuracy should be > 0.85.
 
 parser = argparse.ArgumentParser(
     description='Process flags for unsupervised pre-training with MoCo.')
@@ -50,6 +49,8 @@ parser.add_argument('--fine_tuning_batch_size',
 
 def freeze_encoder_init_last_fc(encoder):
     """
+    Freeze all layers of the MoCo pre-trained encoder with the exception of the final fully connected layers.
+
     :param encoder: A pre-trained MoCo encoder Pytorch model. Typically, this is a variant of Resnet.
     :return: A frozen version of the inputted encoder model, and with the final fully connected layer reset.
     """
@@ -62,6 +63,7 @@ def freeze_encoder_init_last_fc(encoder):
 
 def add_classification_layers(model, hidden_size, num_of_labels, debug=False):
     """
+    Add an additional fully connected layer with a softmax non-linearity on top of the pre-trained MoCo encoder.
 
     :param model: A pre-trained MoCo encoder Pytorch model. Typically, this is a variant of Resnet.
     :param hidden_size: The size of the hidden layer of our encoder. In Resnet for example, the default hidden dimension
@@ -83,6 +85,8 @@ def add_classification_layers(model, hidden_size, num_of_labels, debug=False):
 
 def load_model(dir, filename=None):
     """
+    Load a saved pre-trained MoCo encoder.
+
     :param dir: directory path where pt files and json configuration files exists
     :param filename: the name of the json and pt file with out the suffix
     :return: pre trained model that was loaded from a pt file and the relevant configuration dictionary that was loaded
@@ -105,12 +109,14 @@ def load_model(dir, filename=None):
         config = json.load(fp)
 
     model = models.Encoder(config[consts.ENCODER_OUTPUT_DIM]).double()
+    print(f'model path": {model_path}')
     model.load_state_dict(torch.load(model_path))
     return model, config
 
 
 def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
-    """
+    """Fine tune a pre-trained MoCo encoder on the Imagenette image classification dataset.
+
     :param model: A pre-trained MoCo encoder Pytorch model. Typically, this is a variant of Resnet.
     :param train_loader: `torch.utils.data.DataLoader` instance that provides batches of training data for MoCo to
         fine-tune on.
@@ -122,8 +128,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     :return: The fine-tuned model. Note that the outputted model has a new classifier head relative to the input model.
         The new classifier head of the model predicts imagenette labels.
     """
-    # wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
-    wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config)
+    wandb.init(project="semi_supervised_cv", entity="zbamberger", config=config)
+    # wandb.init(project="semi_supervised_cv", entity="noambenmoshe", config=config)
     wandb.watch(model)
     loss_fn = nn.CrossEntropyLoss()
 
@@ -156,7 +162,8 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
             optimizer.step()
             acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
             acc.append(acc1)
-
+            wandb.log({consts.MINI_BATCH_LOSS: loss_minibatch,
+                       consts.MINI_BATCH_ACCURACY: acc1})
             print(f'\t{consts.MINI_BATCH_INDEX} = {epoch}\t'
                   f'{consts.MINI_BATCH_LOSS} = {loss_minibatch}'
                   f' {consts.MINI_BATCH_ACCURACY} = {acc1}')
@@ -171,8 +178,15 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
               f'{consts.EPOCH_ACCURACY} = {avg_acc}')
     return model
 
+
 def evaluate(fine_tuned_model, validation_loader):
+    """Evaluate the performance of a MoCo encoder that is pre-trained and then fine-tuned on Imagenette.
+    :param fine_tuned_model: A fine-tuned MoCo encoder after it has been pre-trained. A torch model.
+    :param validation_loader: A DataLoader instance containing a verification subset of the Imagenette dataset.
+    :return: The average accuracy of the fine-tuned model on the verification set of Imagenette.
+    """
     acc = []
+    print('Running fine-tuning evaluation...')
     for minibatch, lables in validation_loader:
         minibatch = minibatch.double()
         with torch.no_grad():
@@ -182,18 +196,19 @@ def evaluate(fine_tuned_model, validation_loader):
         acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
         acc.append(acc1)
 
-        print(f' {consts.MINI_BATCH_ACCURACY} = {acc1}')
+        print(f'\t{consts.MINI_BATCH_ACCURACY} = {acc1}')
 
     avg_acc = sum(acc) / len(acc)
     print(f'validation avg_Acc = {avg_acc}')
     return avg_acc
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
     debug = args.fine_tuning_debug
     epochs = 5 if debug else args.fine_tuning_epochs
-    lr = 10  if debug else args.fine_tuning_learning_rate
+    lr = 10 if debug else args.fine_tuning_learning_rate
     momentum = args.fine_tuning_momentum,
     if not os.path.exists(consts.validation_filename):
         data_loader.create_csv_file(dir=consts.image_dir_validation, filename=consts.validation_filename)
@@ -228,27 +243,26 @@ if __name__ == '__main__':
     # tuple.
     fine_tuned_model = fine_tune(pre_trained_model, train_loader, epochs, lr, momentum[0], config)
 
-    avg_acc_val = evaluate(fine_tuned_model,validation_loader)
+    avg_acc_val = evaluate(fine_tuned_model, validation_loader)
 
-    if avg_acc_val >0.8:
+    if avg_acc_val > 0.8:
         if not os.path.exists(consts.SAVED_FINE_TUNED_ENCODERS_DIR):
             os.mkdir(consts.SAVED_FINE_TUNED_ENCODERS_DIR)
         main_name = "_".join(["fine_tuned",
                               "debug",
                               str(debug),
                               consts.RESNET_50,
-                              str(config[consts.PRETRAINING_EPOCHS]),
-                              consts.EPOCHS,
-                              str(config[consts.PRETRAINING_LEARNING_RATE]).replace(".", "_"),
-                              consts.PRETRAINING_LEARNING_RATE,
-                              str(config[consts.PRETRAINING_BATCH_SIZE]),
-                              consts.PRETRAINING_BATCH_SIZE,
-                              str(config[consts.PRETRAINING_M]),
-                              consts.PRETRAINING_M,
+                              str(config[consts.FINE_TUNING_EPOCHS]),
+                              consts.FINE_TUNING_EPOCHS,
+                              str(config[consts.FINE_TUNING_LEARNING_RATE]).replace(".", "_"),
+                              consts.FINE_TUNING_LEARNING_RATE,
+                              str(config[consts.FINE_TUNING_BATCH_SIZE]),
+                              consts.FINE_TUNING_BATCH_SIZE,
                               'avg_acc_val',
                               str(avg_acc_val)])
 
         file_name = main_name + consts.MODEL_FILE_ENCODING
         torch.save(fine_tuned_model.state_dict(), os.path.join(consts.SAVED_FINE_TUNED_ENCODERS_DIR, file_name))
-        config_path = os.path.join(consts.SAVED_FINE_TUNED_ENCODERS_DIR, main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
+        config_path = os.path.join(consts.SAVED_FINE_TUNED_ENCODERS_DIR,
+                                   main_name + consts.MODEL_CONFIGURATION_FILE_ENCODING)
         print(f'Saved pre-trained model to {config_path}')
