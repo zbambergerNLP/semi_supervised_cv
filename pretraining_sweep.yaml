@@ -1,8 +1,8 @@
 program: training_loop.py
 method: bayes
 metric:
-  name: epoch_accuracy
-  goal: maximize
+  name: epoch_loss
+  goal: minimize
 parameters:
   pretraining_learning_rate:
     min: 0.001
