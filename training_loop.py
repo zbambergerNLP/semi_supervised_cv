@@ -127,10 +127,10 @@ def pre_train(encoder,
                           grayscale_conversion_prob=0.2,
                           gaussian_blur_prob=0.5)
 
-            q = encoder.forward(x_q)  # Queries have shape [N, C] where C = 2048 * 1 * 128
+            q = encoder.forward(x_q, device=device)  # Queries have shape [N, C] where C = 2048 * 1 * 128
 
             with torch.no_grad():
-                k = m_encoder.forward(x_k)  # Keys have shape [N, C]
+                k = m_encoder.forward(x_k, device=device)  # Keys have shape [N, C]
                 k = k.detach()  # No gradients to keys
 
             # Positive logits have shape [N, 1]

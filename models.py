@@ -30,19 +30,21 @@ class Encoder(nn.Module):
                                  nn.Linear(consts.HIDDEN_REPRESENTATION_DIM, self.final_num_of_features))
         self.non_linear_func = nn.ReLU()
 
-    def forward(self, x):
+    def forward(self, x, device):
         """Perform a forward pass through the MoCo encoder with some input batch `x`.
 
         :param x: A batch of image input tensors of shape [batch_size, 224, 224, 3]
+        :param device: A torch.device.Device instance representing the device on which we perform training.
         """
-        x = self.resnet50(x)
-        x = torch.flatten(x, start_dim=1)
-        x = self.fc1(x)
-        x = self.non_linear_func(x)
-        # Normalize by the L2 norm
-        l2_norm = torch.linalg.norm(x, dim=1)
-        x = (x.T / l2_norm).T
-        return x
+        with device as d:
+            x = self.resnet50(x.to(d))
+            x = torch.flatten(x, start_dim=1)
+            x = self.fc1(x)
+            x = self.non_linear_func(x)
+            # Normalize by the L2 norm
+            l2_norm = torch.linalg.norm(x, dim=1)
+            x = (x.T / l2_norm).T
+            return x
 
 
 if __name__ == '__main__':
