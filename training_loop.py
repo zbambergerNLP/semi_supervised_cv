@@ -271,8 +271,7 @@ if __name__ == '__main__':
                         pretraining_momentum=config[consts.PRETRAINING_MOMENTUM],
                         number_of_keys=number_of_keys,
                         t=config[consts.TEMPERATURE],
-                        m=config[consts.PRETRAINING_M],
-                        debug=debug)
+                        m=config[consts.PRETRAINING_M])
     # Freeze the encoder
     encoder.requires_grad_(False)
 

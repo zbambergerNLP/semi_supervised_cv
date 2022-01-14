@@ -4,7 +4,7 @@ import torch.nn as nn
 
 import consts
 
-resnet50 = models.resnet50(pretrained=True, progress=True)
+resnet50 = models.resnet50(pretrained=False, progress=True)
 
 
 class Encoder(nn.Module):
