@@ -143,24 +143,25 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     optimizer = torch.optim.SGD(parameters, lr=lr, momentum=momentum)
     scheduler = lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=gamma)
 
-    model = model.double()
+    device = torch.device(consts.CUDA if torch.cuda.is_available() else consts.CPU)
+    model = model.double().to(device)
     acc = []
     loss = []
 
     for epoch in range(epochs):
         print(f'start epoch {epoch}')
         for minibatch, lables in train_loader:
-            minibatch = minibatch.double()
+            minibatch = minibatch.double().to(device)
             optimizer.zero_grad()
 
-            output = model(minibatch)  # Output shape is [batch_size,number_of_classes]
-            loss_minibatch = loss_fn(output, lables.to(torch.int64))
+            output = model.forward(minibatch, device)  # Output shape is [batch_size,number_of_classes]
+            loss_minibatch = loss_fn(output, lables.to(torch.int64).to(device))
             loss.append(loss_minibatch)
             preds = torch.argmax(output, dim=1)
             optimizer.zero_grad()
             loss_minibatch.backward()
             optimizer.step()
-            acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
+            acc1 = torch.eq(preds, lables.to(device)).sum().float().item() / preds.shape[0]
             acc.append(acc1)
             wandb.log({consts.MINI_BATCH_LOSS: loss_minibatch,
                        consts.MINI_BATCH_ACCURACY: acc1})
@@ -179,10 +180,11 @@ def fine_tune(model, train_loader, epochs, lr, momentum, config, gamma=0.9):
     return model
 
 
-def evaluate(fine_tuned_model, validation_loader):
+def evaluate(fine_tuned_model, validation_loader, device):
     """Evaluate the performance of a MoCo encoder that is pre-trained and then fine-tuned on Imagenette.
     :param fine_tuned_model: A fine-tuned MoCo encoder after it has been pre-trained. A torch model.
     :param validation_loader: A DataLoader instance containing a verification subset of the Imagenette dataset.
+    :param device: A torch.device.Device instance representing the device on which downstream evaluation is run.
     :return: The average accuracy of the fine-tuned model on the verification set of Imagenette.
     """
     acc = []
@@ -190,7 +192,7 @@ def evaluate(fine_tuned_model, validation_loader):
     for minibatch, lables in validation_loader:
         minibatch = minibatch.double()
         with torch.no_grad():
-            output = fine_tuned_model(minibatch)  # Output shape is [batch_size,number_of_classes]
+            output = fine_tuned_model.forward(minibatch, device)  # Output shape is [batch_size,number_of_classes]
 
         preds = torch.argmax(output, dim=1)
         acc1 = torch.eq(preds, lables).sum().float().item() / preds.shape[0]
@@ -242,8 +244,8 @@ if __name__ == '__main__':
     # Note: momentum is perceived as a tuple of floats with length 1. The momentum value is the sole entry in this
     # tuple.
     fine_tuned_model = fine_tune(pre_trained_model, train_loader, epochs, lr, momentum[0], config)
-
-    avg_acc_val = evaluate(fine_tuned_model, validation_loader)
+    device = torch.device(consts.CUDA if torch.cuda.is_available() else consts.CPU)
+    avg_acc_val = evaluate(fine_tuned_model, validation_loader, device)
 
     if avg_acc_val > 0.8:
         if not os.path.exists(consts.SAVED_FINE_TUNED_ENCODERS_DIR):

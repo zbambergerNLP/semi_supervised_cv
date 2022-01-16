@@ -140,15 +140,15 @@ def pre_train(encoder,
             k = torch.unsqueeze(k, dim=2)
             l_pos = (q @ k).squeeze(dim=2)
 
-            queue_view = torch.concat([queue_dict[i].unsqueeze(dim=1) for i in range(len(queue_dict))], 1)
+            queue_view = torch.concat([queue_dict[i].unsqueeze(dim=1).to(device) for i in range(len(queue_dict))], 1)
             queue_view.detach()
             q = torch.squeeze(q, dim=1)
 
-            l_neg = q @ queue_view.double()  # Negative logits are a tensor of shape [N, K]
+            l_neg = q.to(device) @ queue_view.double().to(device)  # Negative logits are a tensor of shape [N, K]
             logits = torch.concat((l_pos, l_neg), dim=1)  # Lots have shape [N, K + 1]
-            labels = torch.zeros(l_pos.shape[0])
+            labels = torch.zeros(l_pos.shape[0]).to(device)
             one_hot_labels = torch.nn.functional.one_hot(labels.to(torch.int64), num_classes=logits.shape[1])
-            loss = loss_fn(logits / t, one_hot_labels.double())
+            loss = loss_fn(logits / t, one_hot_labels.double().to(device))
             epoch_loss.append(loss)
             preds = torch.argmax(input=logits, dim=1)
             accuracy = (torch.sum(preds == labels) / logits.shape[0])
