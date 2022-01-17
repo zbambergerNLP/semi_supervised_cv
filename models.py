@@ -11,7 +11,7 @@ class Encoder(nn.Module):
     """
     Resnet +fc
     """
-    def __init__(self, end_num_of_features):
+    def __init__(self, end_num_of_features, model_name='resnet50', pretrained=True):
         """Construct a MoCo encoder composed of a resent50 base, and then followed by a fully connected head.
         The fully connected head of the model is composed of one linear transformation to the same (hidden)
         dimensionality, followed by a linear projection to `final_num_of_features` dimensions. Each of these linear
@@ -19,10 +19,17 @@ class Encoder(nn.Module):
 
         :param end_num_of_features: The dimensionality of the final layer of a sequential head at the end of a
             resnet50 base model.
+        :param pretrained: Whether or not the model we load should be a version pre-trained on Imagenet.
         """
+
+        if model_name == 'resnet50':
+            model = models.resnet50(pretrained=pretrained, progress=True)
+        else:
+            raise RuntimeError(f"{model_name} is an unsupported model for the MoCo encoder. "
+                               f"Please consider using resnet50 instead.")
         self.final_num_of_features = end_num_of_features
         super(Encoder, self).__init__()
-        self.resnet50 = nn.Sequential(*(list(resnet50.children())[:-1]))
+        self.resnet50 = nn.Sequential(*(list(model.children())[:-1]))
 
         # MoCo v2 utilizes two fully connected layers as opposed to one.
         self.fc1 = nn.Sequential(nn.Linear(consts.HIDDEN_REPRESENTATION_DIM, consts.HIDDEN_REPRESENTATION_DIM),

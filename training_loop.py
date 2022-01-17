@@ -1,3 +1,4 @@
+import copy
 import os
 
 import torch
@@ -64,6 +65,10 @@ parser.add_argument('--m',
                     type=float,
                     default=0.999,
                     help='The momentum used to update the key\'s encoder parameters')
+parser.add_argument('--use_imagenet_pretrained_encoder',
+                    type=bool,
+                    default=True,
+                    help="Whether or not the MoCo encoder should be previously pre-trained on Imagenet.")
 
 # Sample run from server command line:
 # srun python3 training_loop.py --pre_training_debug False --seed 2 --pretraining_epochs 100 \
@@ -73,6 +78,7 @@ parser.add_argument('--m',
 # Train function
 def pre_train(encoder,
               m_encoder,
+              device,
               train_loader,
               epochs=3,
               lr=0.001,
@@ -84,6 +90,7 @@ def pre_train(encoder,
     :param encoder: An instance of `models.Encoder` representing the MoCo encoder. This model is composed of a base
      layer such as ResNet, followed by one or two fully connected layers.
     :param m_encoder: A copy of the encoder model utilized as part of MoCo pre-training.
+    :param device: A tf.device.Device instance on which MoCo pre-training occurs.
     :param epochs: The number of iterations over the entire dataset during pre-training.
     :param lr: The learning rate of the primary encoder model.
     :param pretraining_momentum: The momentum for the optimizer used while training MoCo's encoder during pre-training.
@@ -142,9 +149,9 @@ def pre_train(encoder,
 
             queue_view = torch.concat([queue_dict[i].unsqueeze(dim=1).to(device) for i in range(len(queue_dict))], 1)
             queue_view.detach()
-            q = torch.squeeze(q, dim=1)
+            q = torch.squeeze(q, dim=1).to(device)
 
-            l_neg = q.to(device) @ queue_view.double().to(device)  # Negative logits are a tensor of shape [N, K]
+            l_neg = q @ queue_view.double().to(device)  # Negative logits are a tensor of shape [N, K]
             logits = torch.concat((l_pos, l_neg), dim=1)  # Lots have shape [N, K + 1]
             labels = torch.zeros(l_pos.shape[0]).to(device)
             one_hot_labels = torch.nn.functional.one_hot(labels.to(torch.int64), num_classes=logits.shape[1])
@@ -207,26 +214,16 @@ def set_seed(seed=42):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    debug = args.pre_training_debug
-    seed = args.seed
-    epochs = args.pretraining_epochs
-    lr = args.pretraining_learning_rate
-    momentum = args.pretraining_momentum
-    bs = args.pretraining_batch_size
-    mul_for_num_of_keys = args.mul_for_num_of_keys
-    encoder_output_dim = args.encoder_output_dim
-    t = args.temperature
-    m = args.m
 
-    config_args = {consts.PRETRAINING_EPOCHS: epochs,
-                   consts.PRETRAINING_LEARNING_RATE: lr,
-                   consts.PRETRAINING_MOMENTUM: momentum,
-                   consts.PRETRAINING_BATCH_SIZE: bs,
-                   consts.MUL_FOR_NUM_KEYS: mul_for_num_of_keys,
-                   consts.ENCODER_OUTPUT_DIM: encoder_output_dim,
-                   consts.TEMPERATURE: t,
-                   consts.PRETRAINING_M: m,
-                   consts.SEED: seed}
+    config_args = {consts.PRETRAINING_EPOCHS: args.pretraining_epochs,
+                   consts.PRETRAINING_LEARNING_RATE: args.pretraining_learning_rate,
+                   consts.PRETRAINING_MOMENTUM: args.pretraining_momentum,
+                   consts.PRETRAINING_BATCH_SIZE: args.pretraining_batch_size,
+                   consts.MUL_FOR_NUM_KEYS: args.mul_for_num_of_keys,
+                   consts.ENCODER_OUTPUT_DIM: args.encoder_output_dim,
+                   consts.TEMPERATURE: args.temperature,
+                   consts.PRETRAINING_M: args.m,
+                   consts.SEED: args.seed}
 
     print(f'config_args: {config_args}')
 
@@ -238,7 +235,7 @@ if __name__ == '__main__':
     assert number_of_keys % config[consts.PRETRAINING_BATCH_SIZE] == 0,\
         f'{number_of_keys} is not divisible by {config[consts.PRETRAINING_BATCH_SIZE]}.\n'
     print(config)
-    set_seed(seed)
+    set_seed(args.seed)
     imagenette_dataset = ImagenetteDataset(csv_file=consts.csv_filename,
                                            root_dir=consts.image_dir,
                                            transform=transforms.Compose([
@@ -247,25 +244,28 @@ if __name__ == '__main__':
                                                ToTensor(),
                                                normalize
                                            ]),
-                                           debug=debug)
+                                           debug=args.pre_training_debug)
     train_loader = DataLoader(imagenette_dataset,
                               batch_size=config[consts.PRETRAINING_BATCH_SIZE],
                               shuffle=True)
-    encoder = models.Encoder(encoder_output_dim).double()
-    m_endcoder = models.Encoder(encoder_output_dim).double()
+    encoder = models.Encoder(args.encoder_output_dim,
+                             pretrained=args.use_imagenet_pretrained_encoder).double()
+    m_endcoder = models.Encoder(args.encoder_output_dim,
+                                pretrained=args.use_imagenet_pretrained_encoder).double()
 
     # Train model
     device = torch.device(consts.CUDA if torch.cuda.is_available() else consts.CPU)
     encoder.to(device)
     m_endcoder.to(device)
 
-    # Initialize  parameters in both encoders to be the same
+    # Initialize parameters in both encoders to be the same.
     for param, m_param in zip(encoder.parameters(), m_endcoder.parameters()):
         m_param.data.copy_(param.data)
 
     encoder = pre_train(encoder,
                         m_endcoder,
-                        train_loader,
+                        device=device,
+                        train_loader=train_loader,
                         epochs=config[consts.PRETRAINING_EPOCHS],
                         lr=config[consts.PRETRAINING_LEARNING_RATE],
                         pretraining_momentum=config[consts.PRETRAINING_MOMENTUM],
@@ -282,8 +282,8 @@ if __name__ == '__main__':
 
     if not os.path.exists(consts.SAVED_ENCODERS_DIR):
         os.mkdir(consts.SAVED_ENCODERS_DIR)
-    main_name = "_".join(["debug",
-                          str(debug),
+    main_name = "_".join(["number_of_keys",
+                          number_of_keys,
                           consts.RESNET_50,
                           str(config[consts.PRETRAINING_EPOCHS]),
                           consts.EPOCHS,

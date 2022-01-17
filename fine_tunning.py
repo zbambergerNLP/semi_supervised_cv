@@ -108,7 +108,7 @@ def load_model(dir, filename=None):
     with open(json_path, "r") as fp:
         config = json.load(fp)
 
-    model = models.Encoder(config[consts.ENCODER_OUTPUT_DIM]).double()
+    model = models.Encoder(config[consts.ENCODER_OUTPUT_DIM], pretrained=False).double()
     print(f'model path": {model_path}')
     model.load_state_dict(torch.load(model_path))
     return model, config
